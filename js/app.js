@@ -1,139 +1,97 @@
-/**
- * ============================================================
- * EV CHARGE LOCATOR — Lógica principal
- * Autor: EV Charge Locator App
- *
- * Tecnologías: HTML5, CSS3, Bootstrap 5, jQuery 3, Ajax,
- *              Google Maps JS API, Open Charge Map API
- * ============================================================
- */
-
 'use strict';
 
-/* ============================================================
-   CONFIGURACIÓN — Las claves se cargan desde js/config.js
-   (ese archivo está en .gitignore y no se sube al repositorio)
-   Copia js/config.example.js como js/config.js para empezar.
-============================================================ */
-// GOOGLE_MAPS_API_KEY y OCM_API_KEY se declaran en config.js
+// Keys are loaded from config.js (excluded from git).
+// Copy config.example.js as config.js to get started.
 
-/* ============================================================
-   CONFIGURACIÓN DE LA BÚSQUEDA
-============================================================ */
+/* Search settings */
 const CONFIG = {
-    searchRadiusKm:  10,      // Radio de búsqueda en kilómetros
-    maxResults:      50,      // Máximo de estaciones a mostrar
-    defaultLat:      40.4168, // Latitud por defecto (Madrid) si geolocalización falla
-    defaultLng:      -3.7038, // Longitud por defecto
-    defaultZoom:     13,      // Zoom inicial del mapa
-    markerZoom:      16       // Zoom al centrar en una estación
+    searchRadiusKm: 10,      // km radius for the OCM query
+    maxResults:     50,      // max stations returned
+    defaultLat:     40.4168, // fallback center (Madrid)
+    defaultLng:     -3.7038,
+    defaultZoom:    13,
+    markerZoom:     16       // zoom when centering on a station
 };
 
-/* ============================================================
-   ESTADO GLOBAL DE LA APLICACIÓN
-============================================================ */
+/* App state */
 const appState = {
-    map:             null,   // Instancia del mapa de Google
-    markers:         [],     // Array de marcadores en el mapa
-    infoWindow:      null,   // InfoWindow activo
-    geocoder:        null,   // Instancia del Geocoder de Google
-    stations:        [],     // Datos de estaciones cargados
-    activeCardId:    null,   // ID de la tarjeta seleccionada
-    currentFilter:   'all',  // Filtro activo ('all', 'operational', 'unknown')
-    currentModal:    null    // Datos de la estación en el modal
+    map:           null,
+    markers:       [],
+    infoWindow:    null,
+    geocoder:      null,
+    stations:      [],
+    activeCardId:  null,
+    currentFilter: 'all',
+    currentModal:  null
 };
 
-/* ============================================================
-   CALLBACK DE GOOGLE MAPS
-   Esta función es llamada automáticamente por el SDK de Google
-   Maps cuando termina de cargarse (parámetro &callback=initMap)
-============================================================ */
+// Called by the Google Maps SDK once the script loads
 function initMap() {
-    // Ocultar el overlay de carga del mapa
     $('#mapOverlay').addClass('hidden');
 
-    // Crear la instancia del mapa centrada en la posición por defecto
     appState.map = new google.maps.Map(document.getElementById('map'), {
         center: { lat: CONFIG.defaultLat, lng: CONFIG.defaultLng },
         zoom:   CONFIG.defaultZoom,
-        // Estilo oscuro personalizado para el mapa
         styles: getMapStyles(),
-        // Ocultar controles de Google que no necesitamos
-        mapTypeControl:        false,
-        streetViewControl:     false,
-        fullscreenControl:     false,
+        mapTypeControl:    false,
+        streetViewControl: false,
+        fullscreenControl: false,
         zoomControlOptions: {
             position: google.maps.ControlPosition.RIGHT_CENTER
         }
     });
 
-    // Inicializar el InfoWindow reutilizable
     appState.infoWindow = new google.maps.InfoWindow();
+    appState.geocoder   = new google.maps.Geocoder();
 
-    // Inicializar el Geocoder para convertir texto en coordenadas
-    appState.geocoder = new google.maps.Geocoder();
-
-    // Inicializar los eventos de la interfaz
     initEventListeners();
-
-    // Intentar geolocalización automática al cargar
     attemptGeolocation();
 }
 
-/* ============================================================
-   ESTILOS PERSONALIZADOS DEL MAPA (tema oscuro)
-============================================================ */
+/* Dark map theme */
 function getMapStyles() {
     return [
-        { elementType: 'geometry',        stylers: [{ color: '#1a2535' }] },
-        { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
-        { elementType: 'labels.text.stroke', stylers: [{ color: '#0b1120' }] },
+        { elementType: 'geometry',             stylers: [{ color: '#1a2535' }] },
+        { elementType: 'labels.text.fill',     stylers: [{ color: '#94a3b8' }] },
+        { elementType: 'labels.text.stroke',   stylers: [{ color: '#0b1120' }] },
         { featureType: 'road',
-          elementType: 'geometry',       stylers: [{ color: '#232f45' }] },
+          elementType: 'geometry',             stylers: [{ color: '#232f45' }] },
         { featureType: 'road',
-          elementType: 'geometry.stroke', stylers: [{ color: '#111827' }] },
+          elementType: 'geometry.stroke',      stylers: [{ color: '#111827' }] },
         { featureType: 'road.highway',
-          elementType: 'geometry',       stylers: [{ color: '#2d3f60' }] },
+          elementType: 'geometry',             stylers: [{ color: '#2d3f60' }] },
         { featureType: 'road.highway',
-          elementType: 'geometry.stroke', stylers: [{ color: '#1a2535' }] },
+          elementType: 'geometry.stroke',      stylers: [{ color: '#1a2535' }] },
         { featureType: 'water',
-          elementType: 'geometry',       stylers: [{ color: '#0b1120' }] },
+          elementType: 'geometry',             stylers: [{ color: '#0b1120' }] },
         { featureType: 'water',
-          elementType: 'labels.text.fill', stylers: [{ color: '#4b5e82' }] },
-        { featureType: 'poi',
-          stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit',
-          stylers: [{ visibility: 'off' }] },
+          elementType: 'labels.text.fill',     stylers: [{ color: '#4b5e82' }] },
+        { featureType: 'poi',                  stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit',              stylers: [{ visibility: 'off' }] },
         { featureType: 'administrative',
-          elementType: 'geometry',       stylers: [{ color: '#232f45' }] },
+          elementType: 'geometry',             stylers: [{ color: '#232f45' }] },
         { featureType: 'administrative.country',
-          elementType: 'labels.text.fill', stylers: [{ color: '#6b7f9e' }] },
+          elementType: 'labels.text.fill',     stylers: [{ color: '#6b7f9e' }] },
         { featureType: 'administrative.locality',
-          elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+          elementType: 'labels.text.fill',     stylers: [{ color: '#94a3b8' }] },
         { featureType: 'landscape',
-          elementType: 'geometry',       stylers: [{ color: '#1a2535' }] }
+          elementType: 'geometry',             stylers: [{ color: '#1a2535' }] }
     ];
 }
 
-/* ============================================================
-   INICIALIZACIÓN DE EVENTOS
-============================================================ */
+/* Bind all UI events */
 function initEventListeners() {
-    // ---- Formulario de búsqueda manual ----
     $('#searchForm').on('submit', function(e) {
         e.preventDefault();
         const query = $('#searchInput').val().trim();
-        if (query.length > 0) {
-            searchByAddress(query);
-        }
+        if (query.length > 0) searchByAddress(query);
     });
 
-    // ---- Botón de geolocalización ----
     $('#geoBtn').on('click', function() {
-        attemptGeolocation(true); // true = mostrar feedback aunque ya tengamos ubicación
+        attemptGeolocation(true);
     });
 
-    // ---- Filtros de estaciones ----
+    // Filter pills
     $(document).on('click', '.pill', function() {
         $('.pill').removeClass('active');
         $(this).addClass('active');
@@ -141,182 +99,130 @@ function initEventListeners() {
         renderStationsList(appState.stations);
     });
 
-    // ---- Botón FAB (móvil) para mostrar/ocultar panel ----
+    // Mobile: toggle sidebar
     $('#togglePanel').on('click', function() {
         $('#sidebar').toggleClass('open');
     });
 
-    // ---- Centrar mapa desde el modal ----
+    // Center map from modal
     $('#modalCenterBtn').on('click', function() {
-        if (appState.currentModal) {
-            const station = appState.currentModal;
-            const lat = station.AddressInfo.Latitude;
-            const lng = station.AddressInfo.Longitude;
-            centerMapOnStation(lat, lng, station.ID);
-
-            // Cerrar el modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('stationModal'));
-            if (modal) modal.hide();
-        }
+        if (!appState.currentModal) return;
+        const s = appState.currentModal;
+        centerMapOnStation(s.AddressInfo.Latitude, s.AddressInfo.Longitude, s.ID);
+        bootstrap.Modal.getInstance(document.getElementById('stationModal')).hide();
     });
 }
 
-/* ============================================================
-   GEOLOCALIZACIÓN AUTOMÁTICA
-   Usa la API nativa del navegador para obtener la ubicación
-============================================================ */
-function attemptGeolocation(forced) {
-    // Verificar soporte del navegador
+/* Ask browser for current position */
+function attemptGeolocation() {
     if (!navigator.geolocation) {
-        showStatusMessage(
-            'error',
-            'fa-solid fa-location-slash',
-            'Geolocalización no soportada',
-            'Tu navegador no soporta geolocalización. Usa el buscador para encontrar estaciones.'
-        );
-        showToast('Tu navegador no soporta geolocalización.', 'warning');
+        showStatusMessage('error', 'fa-solid fa-location-slash',
+            'Geolocation not supported',
+            'Your browser does not support geolocation. Use the search bar instead.');
+        showToast('Geolocation is not supported by your browser.', 'warning');
         return;
     }
 
-    // Indicar visualmente que se está buscando ubicación
-    $('#geoBtn').addClass('loading').attr('title', 'Obteniendo ubicación...');
+    $('#geoBtn').addClass('loading').attr('title', 'Getting location...');
 
     navigator.geolocation.getCurrentPosition(
-        // ---- Éxito ----
         function(position) {
             $('#geoBtn').removeClass('loading').addClass('active');
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
 
-            // Centrar el mapa en la ubicación del usuario
-            appState.map.setCenter({ lat: lat, lng: lng });
+            appState.map.setCenter({ lat, lng });
             appState.map.setZoom(CONFIG.defaultZoom);
-
-            // Añadir marcador de posición del usuario
             addUserLocationMarker(lat, lng);
-
-            // Buscar estaciones cercanas
             fetchChargingStations(lat, lng);
 
-            showToast('<i class="bi bi-geo-alt-fill me-1"></i> Ubicación obtenida correctamente.', 'success');
+            showToast('<i class="bi bi-geo-alt-fill me-1"></i> Location acquired.', 'success');
         },
-        // ---- Error ----
         function(error) {
             $('#geoBtn').removeClass('loading');
-            let mensaje = '';
-            let titulo  = 'Error de geolocalización';
 
+            let title, msg;
             switch (error.code) {
                 case error.PERMISSION_DENIED:
-                    titulo  = 'Permiso denegado';
-                    mensaje = 'Has denegado el acceso a tu ubicación. Usa el buscador para encontrar estaciones manualmente.';
+                    title = 'Permission denied';
+                    msg   = 'Location access was denied. Use the search bar to find stations manually.';
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    titulo  = 'Ubicación no disponible';
-                    mensaje = 'No se pudo determinar tu ubicación. Intenta de nuevo o usa el buscador.';
+                    title = 'Position unavailable';
+                    msg   = 'Could not determine your location. Try again or use the search bar.';
                     break;
                 case error.TIMEOUT:
-                    titulo  = 'Tiempo agotado';
-                    mensaje = 'La solicitud de geolocalización tardó demasiado. Intenta de nuevo.';
+                    title = 'Request timed out';
+                    msg   = 'Geolocation request took too long. Please try again.';
                     break;
                 default:
-                    titulo  = 'Error desconocido';
-                    mensaje = 'Ocurrió un error al obtener tu ubicación. Usa el buscador.';
+                    title = 'Unknown error';
+                    msg   = 'Could not get your location. Use the search bar.';
             }
 
-            showStatusMessage('error', 'fa-solid fa-location-slash', titulo, mensaje);
-            showToast('<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + titulo + ': ' + mensaje, 'error');
+            showStatusMessage('error', 'fa-solid fa-location-slash', title, msg);
+            showToast('<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + title + ': ' + msg, 'error');
         },
-        // ---- Opciones ----
-        {
-            enableHighAccuracy: true,
-            timeout:            10000, // 10 segundos máximo
-            maximumAge:         60000  // Aceptar caché de hasta 1 minuto
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
 }
 
-/* ---- Marcador especial para la posición del usuario ---- */
+/* Blue dot for the user's own position */
 function addUserLocationMarker(lat, lng) {
-    // Crear marcador SVG para la posición del usuario
-    const userMarker = new google.maps.Marker({
-        position: { lat: lat, lng: lng },
-        map: appState.map,
-        title: 'Tu ubicación',
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
+          <circle cx="18" cy="18" r="16" fill="#0d6efd" opacity="0.2"/>
+          <circle cx="18" cy="18" r="8"  fill="#0d6efd"/>
+          <circle cx="18" cy="18" r="4"  fill="#ffffff"/>
+        </svg>`;
+
+    const marker = new google.maps.Marker({
+        position: { lat, lng },
+        map:   appState.map,
+        title: 'Your location',
         icon: {
-            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
-                  <circle cx="18" cy="18" r="16" fill="#0d6efd" opacity="0.2"/>
-                  <circle cx="18" cy="18" r="8"  fill="#0d6efd"/>
-                  <circle cx="18" cy="18" r="4"  fill="#ffffff"/>
-                </svg>
-            `),
+            url:       'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
             scaledSize: new google.maps.Size(36, 36),
             anchor:     new google.maps.Point(18, 18)
         },
         zIndex: 999
     });
 
-    // Guardar referencia para poder eliminarlo si se busca otra ubicación
-    if (appState.userMarker) {
-        appState.userMarker.setMap(null);
-    }
-    appState.userMarker = userMarker;
+    if (appState.userMarker) appState.userMarker.setMap(null);
+    appState.userMarker = marker;
 }
 
-/* ============================================================
-   BÚSQUEDA POR DIRECCIÓN (Geocoding API)
-   Convierte texto en coordenadas usando Google Geocoder
-============================================================ */
+/* Geocode a text query and load stations at that position */
 function searchByAddress(query) {
-    // Mostrar spinner mientras se geocodifica
     showLoadingSpinner();
 
     appState.geocoder.geocode({ address: query }, function(results, status) {
         if (status === 'OK' && results.length > 0) {
-            const location = results[0].geometry.location;
-            const lat = location.lat();
-            const lng = location.lng();
+            const loc = results[0].geometry.location;
+            const lat = loc.lat();
+            const lng = loc.lng();
 
-            // Centrar el mapa en la dirección encontrada
-            appState.map.setCenter({ lat: lat, lng: lng });
+            appState.map.setCenter({ lat, lng });
             appState.map.setZoom(CONFIG.defaultZoom);
-
-            // Añadir marcador de búsqueda
             addUserLocationMarker(lat, lng);
-
-            // Actualizar el campo de búsqueda con la dirección formateada
             $('#searchInput').val(results[0].formatted_address);
-
-            // Buscar estaciones en esas coordenadas
             fetchChargingStations(lat, lng);
-
         } else {
-            // No se encontró la dirección
             hideLoadingSpinner();
-            let errorMsg = 'No se encontró la dirección "' + query + '". Intenta con otro término.';
 
-            if (status === 'ZERO_RESULTS') {
-                errorMsg = 'No se encontraron resultados para "' + query + '".';
-            } else if (status === 'OVER_QUERY_LIMIT') {
-                errorMsg = 'Se ha superado el límite de consultas. Intenta de nuevo en unos momentos.';
-            }
+            let msg = 'Address "' + query + '" not found. Try a different term.';
+            if (status === 'ZERO_RESULTS')      msg = 'No results for "' + query + '".';
+            if (status === 'OVER_QUERY_LIMIT')  msg = 'Query limit reached. Try again in a moment.';
 
-            showStatusMessage('error', 'fa-solid fa-map-location-dot', 'Dirección no encontrada', errorMsg);
-            showToast('<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + errorMsg, 'error');
+            showStatusMessage('error', 'fa-solid fa-map-location-dot', 'Address not found', msg);
+            showToast('<i class="bi bi-exclamation-triangle-fill me-1"></i> ' + msg, 'error');
         }
     });
 }
 
-/* ============================================================
-   CONSULTA AJAX A OPEN CHARGE MAP API
-   Obtiene las estaciones de carga cercanas a las coordenadas
-============================================================ */
+/* Ajax request to Open Charge Map */
 function fetchChargingStations(lat, lng) {
-    // Mostrar spinner en el panel lateral
     showLoadingSpinner();
-
-    // Limpiar marcadores anteriores del mapa
     clearMarkers();
 
     $.ajax({
@@ -333,106 +239,70 @@ function fetchChargingStations(lat, lng) {
             compact:      true,
             verbose:      false
         },
-        // ---- Respuesta exitosa ----
         success: function(data) {
             hideLoadingSpinner();
 
             if (!data || data.length === 0) {
-                // No se encontraron estaciones en la zona
-                showStatusMessage(
-                    'no-results',
-                    'fa-solid fa-charging-station',
-                    'Sin estaciones cercanas',
-                    'No se encontraron estaciones de carga en un radio de ' +
-                    CONFIG.searchRadiusKm + ' km. Prueba a aumentar el radio o busca otra zona.'
-                );
-                showToast('No se encontraron estaciones cercanas.', 'warning');
+                showStatusMessage('no-results', 'fa-solid fa-charging-station',
+                    'No stations nearby',
+                    'No charging stations found within ' + CONFIG.searchRadiusKm + ' km. Try searching another area.');
+                showToast('No stations found nearby.', 'warning');
                 return;
             }
 
-            // Guardar los datos en el estado global
             appState.stations = data;
-
-            // Crear marcadores en el mapa
             createMarkers(data);
-
-            // Renderizar la lista en el panel lateral
             renderStationsList(data);
-
-            // Actualizar el contador
             updateStationsCount(data.length);
 
-            // Mostrar toast de confirmación
             showToast(
-                '<i class="bi bi-check-circle-fill me-1"></i> Se encontraron <strong>' +
-                data.length + '</strong> estaciones en un radio de ' + CONFIG.searchRadiusKm + ' km.',
+                '<i class="bi bi-check-circle-fill me-1"></i> Found <strong>' +
+                data.length + '</strong> stations within ' + CONFIG.searchRadiusKm + ' km.',
                 'success'
             );
 
-            // En móvil, mostrar el panel automáticamente
+            // Auto-open sidebar on mobile
             if ($(window).width() <= 767) {
                 $('#sidebar').addClass('open');
                 updateFabBadge(data.length);
             }
         },
-        // ---- Error de la petición Ajax ----
-        error: function(xhr, status, error) {
+        error: function(xhr) {
             hideLoadingSpinner();
 
-            let errorMsg = 'Error al conectar con Open Charge Map. Verifica tu conexión a internet.';
+            let msg = 'Could not connect to Open Charge Map. Check your internet connection.';
+            if (xhr.status === 401) msg = 'Invalid API key. Check OCM_API_KEY in config.js.';
+            if (xhr.status === 429) msg = 'Too many requests. Wait a moment and try again.';
+            if (xhr.status === 0)   msg = 'No internet connection or API unavailable.';
 
-            if (xhr.status === 401) {
-                errorMsg = 'API key inválida. Comprueba la clave OCM_API_KEY en app.js.';
-            } else if (xhr.status === 429) {
-                errorMsg = 'Demasiadas peticiones. Espera unos segundos y vuelve a intentarlo.';
-            } else if (xhr.status === 0) {
-                errorMsg = 'Sin conexión a internet o la API no está disponible.';
-            }
+            showStatusMessage('error', 'fa-solid fa-triangle-exclamation', 'Failed to load stations', msg);
+            showToast('<i class="bi bi-wifi-off me-1"></i> ' + msg, 'error');
 
-            showStatusMessage(
-                'error',
-                'fa-solid fa-triangle-exclamation',
-                'Error al cargar estaciones',
-                errorMsg
-            );
-            showToast('<i class="bi bi-wifi-off me-1"></i> ' + errorMsg, 'error');
-
-            console.error('[EV Charge Locator] Error Ajax:', status, error, xhr.responseText);
+            console.error('[EV Charge Locator] Ajax error:', xhr.status, xhr.responseText);
         }
     });
 }
 
-/* ============================================================
-   CREAR MARCADORES EN EL MAPA
-   Genera un marcador SVG personalizado para cada estación
-============================================================ */
+/* Drop a marker for each station */
 function createMarkers(stations) {
     stations.forEach(function(station, index) {
-        const lat = station.AddressInfo.Latitude;
-        const lng = station.AddressInfo.Longitude;
-
-        // Determinar el color del marcador según el estado
+        const lat   = station.AddressInfo.Latitude;
+        const lng   = station.AddressInfo.Longitude;
         const color = getStatusColor(station.StatusType);
 
-        // Crear el icono SVG del marcador
-        const markerIcon = {
-            url: createMarkerSVG(color),
-            scaledSize: new google.maps.Size(36, 44),
-            anchor:     new google.maps.Point(18, 44)
-        };
-
-        // Crear el marcador
         const marker = new google.maps.Marker({
-            position: { lat: lat, lng: lng },
-            map:      appState.map,
-            title:    station.AddressInfo.Title,
-            icon:     markerIcon,
-            // Guardar el ID de la estación en el marcador para referencia
-            stationId: station.ID,
+            position:     { lat, lng },
+            map:          appState.map,
+            title:        station.AddressInfo.Title,
+            icon: {
+                url:        createMarkerSVG(color),
+                scaledSize: new google.maps.Size(36, 44),
+                anchor:     new google.maps.Point(18, 44)
+            },
+            stationId:    station.ID,
             stationIndex: index
         });
 
-        // Evento clic en el marcador — mostrar InfoWindow
         marker.addListener('click', function() {
             openInfoWindow(marker, station);
             highlightCard(station.ID);
@@ -442,47 +312,34 @@ function createMarkers(stations) {
     });
 }
 
-/* ---- Crear SVG del marcador con color dinámico ---- */
+/* Build the pin SVG with a dynamic color */
 function createMarkerSVG(color) {
     const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="36" height="44">
-          <!-- Pin exterior -->
+          <!-- pin shape -->
           <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z"
                 fill="${color}" opacity="0.95"/>
-          <!-- Círculo interior blanco -->
           <circle cx="18" cy="17" r="10" fill="rgba(255,255,255,0.15)"/>
-          <!-- Icono de rayo (bolt) simplificado -->
-          <path d="M20.5 8.5l-5 9h4.5l-4.5 9 8-11h-4.5z"
-                fill="#ffffff" opacity="0.95"/>
-        </svg>
-    `;
+          <!-- bolt icon -->
+          <path d="M20.5 8.5l-5 9h4.5l-4.5 9 8-11h-4.5z" fill="#ffffff" opacity="0.95"/>
+        </svg>`;
     return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
-/* ---- Limpiar todos los marcadores del mapa ---- */
+/* Remove all station markers from the map */
 function clearMarkers() {
-    appState.markers.forEach(function(marker) {
-        marker.setMap(null);
-    });
+    appState.markers.forEach(m => m.setMap(null));
     appState.markers = [];
-
-    // Cerrar el InfoWindow si está abierto
-    if (appState.infoWindow) {
-        appState.infoWindow.close();
-    }
+    if (appState.infoWindow) appState.infoWindow.close();
 }
 
-/* ============================================================
-   INFOWINDOW — Ventana emergente al hacer clic en un marcador
-============================================================ */
+/* Open an InfoWindow for a station marker */
 function openInfoWindow(marker, station) {
-    const info = station.AddressInfo;
-
-    // Construir el contenido del InfoWindow
+    const info       = station.AddressInfo;
     const connectors = getConnectorsList(station);
     const statusText = getStatusText(station.StatusType);
-    const statusColor = getStatusColor(station.StatusType);
-    const numPoints = station.NumberOfPoints || 'N/D';
+    const statusColor= getStatusColor(station.StatusType);
+    const numPoints  = station.NumberOfPoints || 'N/A';
 
     const content = `
         <div class="info-window">
@@ -500,65 +357,51 @@ function openInfoWindow(marker, station) {
                 </div>
                 <div class="info-window-row">
                     <i class="fa-solid fa-plug"></i>
-                    <span>${connectors || 'Tipo de conector desconocido'}</span>
+                    <span>${connectors || 'Connector type unknown'}</span>
                 </div>
                 <div class="info-window-row">
                     <i class="fa-solid fa-charging-station"></i>
-                    <span>${numPoints} punto(s) de carga</span>
+                    <span>${numPoints} charging point(s)</span>
                 </div>
                 <button class="info-window-btn" onclick="openStationModal(${station.ID})">
-                    <i class="fa-solid fa-circle-info"></i> Ver detalles completos
+                    <i class="fa-solid fa-circle-info"></i> View full details
                 </button>
             </div>
-        </div>
-    `;
+        </div>`;
 
     appState.infoWindow.setContent(content);
     appState.infoWindow.open(appState.map, marker);
 }
 
-/* ============================================================
-   RENDERIZAR LISTA DE ESTACIONES EN EL PANEL LATERAL
-============================================================ */
+/* Render the sidebar list applying the active filter */
 function renderStationsList(stations) {
-    const $list = $('#stationsList');
+    const $list   = $('#stationsList');
+    const filtered = filterStations(stations, appState.currentFilter);
+
     $list.empty();
 
-    // Aplicar filtro activo
-    const filteredStations = filterStations(stations, appState.currentFilter);
-
-    if (filteredStations.length === 0) {
+    if (filtered.length === 0) {
         $list.html(`
             <div class="text-center py-4" style="color: var(--color-text-muted); font-size: 0.82rem;">
                 <i class="fa-solid fa-filter mb-2 d-block" style="font-size: 1.5rem;"></i>
-                No hay estaciones que coincidan con el filtro activo.
-            </div>
-        `);
+                No stations match the active filter.
+            </div>`);
     } else {
-        // Crear una tarjeta por cada estación
-        filteredStations.forEach(function(station) {
-            const $card = createStationCard(station);
-            $list.append($card);
-        });
+        filtered.forEach(s => $list.append(createStationCard(s)));
     }
 
-    // Mostrar la lista y ocultar el mensaje de estado
     $('#statusMessage').hide();
     $list.removeClass('d-none').show();
-
-    // Actualizar el contador con el filtro aplicado
-    updateStationsCount(filteredStations.length);
+    updateStationsCount(filtered.length);
 }
 
-/* ---- Crear tarjeta HTML para una estación ---- */
+/* Build a single station card element */
 function createStationCard(station) {
-    const info = station.AddressInfo;
+    const info        = station.AddressInfo;
     const statusText  = getStatusText(station.StatusType);
     const statusClass = getStatusClass(station.StatusType);
-    const connectors  = getConnectorsList(station, 2); // Máximo 2 conectores en la tarjeta
+    const connectors  = getConnectorsList(station, 2); // cap at 2 in the card
     const numPoints   = station.NumberOfPoints || '?';
-
-    // Calcular distancia aproximada si está disponible
     const distanceStr = info.Distance
         ? (Math.round(info.Distance * 10) / 10) + ' km'
         : '';
@@ -580,7 +423,7 @@ function createStationCard(station) {
             <div class="station-meta">
                 <span class="station-meta-item">
                     <i class="fa-solid fa-charging-station"></i>
-                    ${numPoints} punto(s)
+                    ${numPoints} point(s)
                 </span>
                 ${connectors ? `
                 <span class="station-meta-item">
@@ -588,59 +431,42 @@ function createStationCard(station) {
                     ${escapeHtml(connectors)}
                 </span>` : ''}
             </div>
-        </div>
-    `);
+        </div>`);
 
-    // Evento clic en la tarjeta — centrar el mapa y abrir InfoWindow
     $card.on('click', function() {
-        const lat = info.Latitude;
-        const lng = info.Longitude;
-        centerMapOnStation(lat, lng, station.ID);
+        centerMapOnStation(info.Latitude, info.Longitude, station.ID);
     });
 
     return $card;
 }
 
-/* ---- Centrar el mapa en una estación y abrir su InfoWindow ---- */
+/* Pan map to a station and open its InfoWindow */
 function centerMapOnStation(lat, lng, stationId) {
-    appState.map.panTo({ lat: lat, lng: lng });
+    appState.map.panTo({ lat, lng });
     appState.map.setZoom(CONFIG.markerZoom);
 
-    // Encontrar el marcador correspondiente y abrir su InfoWindow
-    const marker = appState.markers.find(m => m.stationId === stationId);
-    if (marker) {
-        const station = appState.stations.find(s => s.ID === stationId);
-        if (station) {
-            openInfoWindow(marker, station);
-        }
-    }
+    const marker  = appState.markers.find(m => m.stationId === stationId);
+    const station = appState.stations.find(s => s.ID === stationId);
+    if (marker && station) openInfoWindow(marker, station);
 
-    // Resaltar la tarjeta en el panel lateral
     highlightCard(stationId);
 }
 
-/* ---- Resaltar la tarjeta activa en el panel ---- */
+/* Mark the matching sidebar card as active and scroll to it */
 function highlightCard(stationId) {
     $('.station-card').removeClass('active');
     const $card = $(`.station-card[data-id="${stationId}"]`);
     $card.addClass('active');
 
-    // Hacer scroll suave hasta la tarjeta activa
-    if ($card.length) {
-        const list = document.getElementById('stationsList');
-        if (list) {
-            const cardTop = $card[0].offsetTop - list.offsetTop;
-            list.scrollTo({ top: cardTop - 16, behavior: 'smooth' });
-        }
+    const list = document.getElementById('stationsList');
+    if ($card.length && list) {
+        list.scrollTo({ top: $card[0].offsetTop - list.offsetTop - 16, behavior: 'smooth' });
     }
 
     appState.activeCardId = stationId;
 }
 
-/* ============================================================
-   MODAL DE DETALLE COMPLETO
-   Se abre al hacer clic en "Ver detalles completos" en el InfoWindow
-============================================================ */
+/* Open the detail modal for a station */
 function openStationModal(stationId) {
     const station = appState.stations.find(s => s.ID === stationId);
     if (!station) return;
@@ -648,37 +474,33 @@ function openStationModal(stationId) {
     appState.currentModal = station;
     const info = station.AddressInfo;
 
-    // Título y dirección en el header del modal
     $('#stationModalLabel').text(info.Title);
     $('#modalAddress').text(buildAddress(info));
 
-    // Construir contenido del modal
     const statusText  = getStatusText(station.StatusType);
     const statusClass = getStatusClass(station.StatusType);
-    const numPoints   = station.NumberOfPoints || 'N/D';
-    const operator    = station.OperatorInfo ? station.OperatorInfo.Title : 'No disponible';
-    const usageType   = station.UsageType    ? station.UsageType.Title    : 'No disponible';
+    const numPoints   = station.NumberOfPoints || 'N/A';
+    const operator    = station.OperatorInfo ? station.OperatorInfo.Title : 'Not available';
+    const usageType   = station.UsageType    ? station.UsageType.Title    : 'Not available';
 
-    // Lista completa de conectores
     let connectorsHtml = '<div class="connector-list">';
     if (station.Connections && station.Connections.length > 0) {
         station.Connections.forEach(function(conn) {
-            const type  = conn.ConnectionType ? conn.ConnectionType.Title : 'Desconocido';
+            const type  = conn.ConnectionType ? conn.ConnectionType.Title : 'Unknown';
             const level = conn.Level          ? conn.Level.Title           : '';
             const power = conn.PowerKW        ? conn.PowerKW + ' kW'      : '';
-
             const label = [type, level, power].filter(Boolean).join(' · ');
             connectorsHtml += `<span class="connector-tag"><i class="fa-solid fa-plug me-1"></i>${escapeHtml(label)}</span>`;
         });
     } else {
-        connectorsHtml += '<span class="connector-tag">No especificado</span>';
+        connectorsHtml += '<span class="connector-tag">Not specified</span>';
     }
     connectorsHtml += '</div>';
 
-    const modalHtml = `
+    $('#modalBody').html(`
         <div class="modal-info-grid">
             <div class="modal-info-item">
-                <div class="modal-info-label"><i class="fa-solid fa-circle-check me-1"></i>Estado</div>
+                <div class="modal-info-label"><i class="fa-solid fa-circle-check me-1"></i>Status</div>
                 <div class="modal-info-value">
                     <span class="station-status ${statusClass}" style="font-size:0.8rem;">
                         <i class="bi bi-circle-fill" style="font-size:0.5rem;"></i>
@@ -687,72 +509,52 @@ function openStationModal(stationId) {
                 </div>
             </div>
             <div class="modal-info-item">
-                <div class="modal-info-label"><i class="fa-solid fa-charging-station me-1"></i>Puntos de carga</div>
+                <div class="modal-info-label"><i class="fa-solid fa-charging-station me-1"></i>Charging points</div>
                 <div class="modal-info-value">${numPoints}</div>
             </div>
             <div class="modal-info-item">
-                <div class="modal-info-label"><i class="fa-solid fa-building me-1"></i>Operador</div>
+                <div class="modal-info-label"><i class="fa-solid fa-building me-1"></i>Operator</div>
                 <div class="modal-info-value">${escapeHtml(operator)}</div>
             </div>
             <div class="modal-info-item">
-                <div class="modal-info-label"><i class="fa-solid fa-users me-1"></i>Tipo de acceso</div>
+                <div class="modal-info-label"><i class="fa-solid fa-users me-1"></i>Access type</div>
                 <div class="modal-info-value">${escapeHtml(usageType)}</div>
             </div>
         </div>
         <div class="modal-info-item mb-0">
-            <div class="modal-info-label mb-2"><i class="fa-solid fa-plug me-1"></i>Conectores disponibles</div>
+            <div class="modal-info-label mb-2"><i class="fa-solid fa-plug me-1"></i>Available connectors</div>
             ${connectorsHtml}
-        </div>
-    `;
+        </div>`);
 
-    $('#modalBody').html(modalHtml);
-
-    // Mostrar el modal usando Bootstrap 5
-    const modal = new bootstrap.Modal(document.getElementById('stationModal'));
-    modal.show();
+    new bootstrap.Modal(document.getElementById('stationModal')).show();
 }
 
-// Exponer la función globalmente para poder usarla desde el HTML del InfoWindow
+// Needs to be global so the InfoWindow inline onclick can reach it
 window.openStationModal = openStationModal;
 
-/* ============================================================
-   FILTRADO DE ESTACIONES
-============================================================ */
+/* Filter station array by status class */
 function filterStations(stations, filter) {
     if (filter === 'all') return stations;
-
-    return stations.filter(function(station) {
-        const statusClass = getStatusClass(station.StatusType);
-        return statusClass === filter;
-    });
+    return stations.filter(s => getStatusClass(s.StatusType) === filter);
 }
 
-/* ============================================================
-   FUNCIONES DE UTILIDAD — Estado de estaciones
-============================================================ */
+/* --- Status helpers --- */
 
-/* Obtener texto del estado */
 function getStatusText(statusType) {
-    if (!statusType) return 'Desconocido';
-    const title = (statusType.Title || statusType.IsOperational !== undefined)
-        ? statusType.Title
-        : '';
+    if (!statusType) return 'Unknown';
+    if (statusType.IsOperational === true)  return 'Operational';
+    if (statusType.IsOperational === false) return 'Out of service';
 
-    if (statusType.IsOperational === true)  return 'Operativa';
-    if (statusType.IsOperational === false) return 'Fuera de servicio';
-
-    // Mapeo de títulos comunes de OCM
     const map = {
-        'Operational':         'Operativa',
-        'Not Operational':     'Fuera de servicio',
-        'Planned For Future Date': 'Planificada',
-        'Temporarily Unavailable': 'Temporalmente no disponible',
-        'Unknown':             'Desconocido'
+        'Operational':             'Operational',
+        'Not Operational':         'Out of service',
+        'Planned For Future Date': 'Planned',
+        'Temporarily Unavailable': 'Temporarily unavailable',
+        'Unknown':                 'Unknown'
     };
-    return map[title] || title || 'Desconocido';
+    return map[statusType.Title] || statusType.Title || 'Unknown';
 }
 
-/* Obtener clase CSS del estado */
 function getStatusClass(statusType) {
     if (!statusType) return 'unknown';
     if (statusType.IsOperational === true)  return 'operational';
@@ -760,36 +562,30 @@ function getStatusClass(statusType) {
     return 'unknown';
 }
 
-/* Obtener color del marcador según estado */
 function getStatusColor(statusType) {
-    const cls = getStatusClass(statusType);
     const colors = {
-        'operational': '#00d084', // Verde eléctrico
-        'offline':     '#ef4444', // Rojo
-        'unknown':     '#f59e0b'  // Ámbar
+        operational: '#00d084',
+        offline:     '#ef4444',
+        unknown:     '#f59e0b'
     };
-    return colors[cls] || colors['unknown'];
+    return colors[getStatusClass(statusType)] || colors.unknown;
 }
 
-/* Construir texto de conectores (limitado al número indicado) */
+/* Return connector type names, optionally capped at maxItems */
 function getConnectorsList(station, maxItems) {
     if (!station.Connections || station.Connections.length === 0) return '';
-    const items = station.Connections
-        .map(function(conn) {
-            return conn.ConnectionType ? conn.ConnectionType.Title : null;
-        })
-        .filter(Boolean);
-
-    // Eliminar duplicados
-    const unique = [...new Set(items)];
-
+    const unique = [...new Set(
+        station.Connections
+            .map(c => c.ConnectionType ? c.ConnectionType.Title : null)
+            .filter(Boolean)
+    )];
     if (maxItems && unique.length > maxItems) {
         return unique.slice(0, maxItems).join(', ') + '...';
     }
     return unique.join(', ');
 }
 
-/* Construir dirección legible a partir de AddressInfo */
+/* Build a readable address string from AddressInfo */
 function buildAddress(info) {
     const parts = [
         info.AddressLine1,
@@ -797,37 +593,32 @@ function buildAddress(info) {
         info.StateOrProvince,
         info.Country ? info.Country.Title : null
     ].filter(Boolean);
-    return parts.join(', ') || 'Dirección no disponible';
+    return parts.join(', ') || 'Address not available';
 }
 
-/* Escapar HTML para prevenir XSS */
+/* Escape user-facing strings to prevent XSS */
 function escapeHtml(text) {
     if (typeof text !== 'string') return text || '';
     return text
-        .replace(/&/g,  '&amp;')
-        .replace(/</g,  '&lt;')
-        .replace(/>/g,  '&gt;')
-        .replace(/"/g,  '&quot;')
-        .replace(/'/g,  '&#039;');
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
-/* ============================================================
-   FUNCIONES DE UI — Spinner, Toast, Contador
-============================================================ */
+/* --- UI helpers --- */
 
-/* Mostrar spinner de carga en el panel lateral */
 function showLoadingSpinner() {
     $('#statusMessage').hide();
     $('#stationsList').addClass('d-none').hide();
     $('#loadingSpinner').removeClass('d-none').show();
 }
 
-/* Ocultar spinner */
 function hideLoadingSpinner() {
     $('#loadingSpinner').addClass('d-none').hide();
 }
 
-/* Mostrar mensaje de estado en el panel lateral */
 function showStatusMessage(type, icon, title, message) {
     hideLoadingSpinner();
     $('#stationsList').addClass('d-none').hide();
@@ -840,67 +631,48 @@ function showStatusMessage(type, icon, title, message) {
     $msg.show();
 }
 
-/* Actualizar el contador de estaciones */
 function updateStationsCount(count) {
     $('#stationsCount').text(count);
     updateFabBadge(count);
 }
 
-/* Actualizar badge del botón FAB */
 function updateFabBadge(count) {
     const $badge = $('#fabBadge');
-    if (count > 0) {
-        $badge.text(count > 99 ? '99+' : count).removeClass('d-none');
-    } else {
-        $badge.addClass('d-none');
-    }
+    count > 0
+        ? $badge.text(count > 99 ? '99+' : count).removeClass('d-none')
+        : $badge.addClass('d-none');
 }
 
-/* Mostrar notificación Toast */
 function showToast(message, type) {
-    const $toast    = $('#notificationToast');
-    const $toastBody = $('#toastBody');
+    const $toast = $('#notificationToast');
+    $toast.removeClass('success error info warning').addClass(type || 'info');
+    $('#toastBody').html(message);
 
-    // Quitar clases de tipo anteriores
-    $toast.removeClass('success error info warning');
-    $toast.addClass(type || 'info');
-
-    // Establecer el mensaje
-    $toastBody.html(message);
-
-    // Mostrar con Bootstrap Toast
-    const toastEl = document.getElementById('notificationToast');
-    const bsToast = bootstrap.Toast.getOrCreateInstance(toastEl, {
-        delay: 4000,
-        autohide: true
-    });
-    bsToast.show();
+    bootstrap.Toast.getOrCreateInstance(document.getElementById('notificationToast'), {
+        delay: 4000, autohide: true
+    }).show();
 }
 
-/* ============================================================
-   INICIALIZACIÓN AL CARGAR LA PÁGINA (sin Google Maps)
-   Solo configuramos eventos que no dependen del mapa
-============================================================ */
+/* Runs on page load — sets up error handling before Maps loads */
 $(document).ready(function() {
-    // Manejo de errores de carga de Google Maps
-    // Si el script de Google Maps falla (ej: API key inválida),
-    // mostramos un mensaje amigable
+    // Called by Maps SDK if the API key fails auth
     window.gm_authFailure = function() {
-        $('#mapOverlay').find('p').text('Error: API key de Google Maps inválida.');
+        document.getElementById('mapOverlay').querySelector('p').textContent =
+            'Google Maps auth error — check GOOGLE_MAPS_API_KEY in config.js.';
         $('#mapOverlay').find('.progress').replaceWith(`
-            <div class="alert alert-danger mt-3" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #fca5a5; font-size: 0.8rem; max-width: 320px;">
+            <div class="alert alert-danger mt-3"
+                 style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);
+                        color:#fca5a5;font-size:0.8rem;max-width:320px;">
                 <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                <strong>Error de autenticación de Google Maps.</strong><br>
-                Comprueba que GOOGLE_MAPS_API_KEY en app.js es válida y tiene la API JavaScript habilitada.
-            </div>
-        `);
+                <strong>Google Maps authentication failed.</strong><br>
+                Make sure the key has the Maps JavaScript API enabled.
+            </div>`);
     };
 
-    // Detectar si Google Maps no carga en 10 segundos
+    // Warn in console if Maps never loads
     setTimeout(function() {
         if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
-            $('#mapOverlay').find('p').text('No se pudo cargar Google Maps.');
-            console.warn('[EV Charge Locator] Google Maps API no cargó. Verifica la API key y la conexión a internet.');
+            console.warn('[EV Charge Locator] Google Maps did not load — check the API key and internet connection.');
         }
     }, 10000);
 });
