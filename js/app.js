@@ -185,7 +185,15 @@ function initEventListeners() {
 
     // Mobile: toggle sidebar
     $('#togglePanel').on('click', function() {
+        const opening = !$('#sidebar').hasClass('open');
         $('#sidebar').toggleClass('open');
+        updateFabIcon(opening);
+    });
+
+    // Mobile: close panel via header button
+    $('#closePanelBtn').on('click', function() {
+        $('#sidebar').removeClass('open');
+        updateFabIcon(false);
     });
 
     // Center map from modal
@@ -347,6 +355,7 @@ function fetchChargingStations(lat, lng) {
             // Auto-open sidebar on mobile
             if ($(window).width() <= 767) {
                 $('#sidebar').addClass('open');
+                updateFabIcon(true);
                 updateFabBadge(data.length);
             }
         },
@@ -539,6 +548,12 @@ function createStationCard(station) {
 
 /* Pan map to a station and open its InfoWindow */
 function centerMapOnStation(lat, lng, stationId) {
+    // Close the bottom sheet on mobile so the InfoWindow is visible
+    if ($(window).width() <= 767) {
+        $('#sidebar').removeClass('open');
+        updateFabIcon(false);
+    }
+
     appState.map.panTo({ lat, lng });
     appState.map.setZoom(CONFIG.markerZoom);
 
@@ -742,6 +757,10 @@ function showStatusMessage(type, icon, title, message) {
 function updateStationsCount(count) {
     $('#stationsCount').text(count);
     updateFabBadge(count);
+}
+
+function updateFabIcon(isOpen) {
+    $('#togglePanel i').attr('class', isOpen ? 'bi bi-chevron-down' : 'bi bi-list-ul');
 }
 
 function updateFabBadge(count) {
