@@ -720,6 +720,23 @@ html, body {
     color: #fff;
 }
 
+/* Navigate button — blue, sits next to btn-accent in the modal footer */
+.btn-navigate {
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-navigate:hover {
+    background: #0b5ed7;
+    border-color: #0b5ed7;
+    color: #fff;
+}
+
 /* ============================================================
    GOOGLE MAPS — custom InfoWindow styles
 ============================================================ */
