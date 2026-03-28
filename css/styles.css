@@ -3,7 +3,7 @@
    Colors: electric greens, dark blues, clean whites
    ============================================================ */
 
-/* CSS variables */
+/* CSS variables — dark theme (default) */
 :root {
     --color-primary:     #0d6efd;
     --color-accent:      #00d084;   /* main green */
@@ -26,6 +26,40 @@
     --transition:        all 0.25s ease;
     --shadow:            0 4px 24px rgba(0, 0, 0, 0.35);
     --shadow-sm:         0 2px 8px rgba(0, 0, 0, 0.25);
+
+    /* theme-specific tokens */
+    --navbar-bg:         linear-gradient(135deg, #0b1120 0%, #0d1f3c 100%);
+    --navbar-text:       #ffffff;
+    --search-bg:         rgba(255, 255, 255, 0.06);
+    --search-border:     rgba(255, 255, 255, 0.12);
+    --search-focus-bg:   rgba(255, 255, 255, 0.08);
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+    --color-dark:        #f0f4f8;
+    --color-dark-2:      #ffffff;
+    --color-dark-3:      #f8fafc;
+    --color-dark-4:      #e2e8f0;
+    --color-text:        #0f172a;
+    --color-text-muted:  #64748b;
+    --color-unknown:     #64748b;
+    --shadow:            0 4px 24px rgba(0, 0, 0, 0.10);
+    --shadow-sm:         0 2px 8px rgba(0, 0, 0, 0.06);
+
+    --navbar-bg:         linear-gradient(135deg, #ffffff 0%, #eef2ff 100%);
+    --navbar-text:       #0f172a;
+    --search-bg:         rgba(0, 0, 0, 0.04);
+    --search-border:     rgba(0, 0, 0, 0.12);
+    --search-focus-bg:   rgba(0, 0, 0, 0.06);
+}
+
+/* Smooth color transitions while switching theme */
+html.theme-switching * {
+    transition: background-color 0.25s ease,
+                color 0.25s ease,
+                border-color 0.25s ease,
+                box-shadow 0.25s ease !important;
 }
 
 /* Reset */
@@ -47,7 +81,7 @@ html, body {
    NAVBAR
 ============================================================ */
 .navbar-custom {
-    background: linear-gradient(135deg, #0b1120 0%, #0d1f3c 100%);
+    background: var(--navbar-bg);
     border-bottom: 1px solid var(--color-dark-4);
     height: var(--navbar-height);
     backdrop-filter: blur(12px);
@@ -74,7 +108,7 @@ html, body {
     font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 0.5px;
-    color: #fff;
+    color: var(--navbar-text);
     white-space: nowrap;
 }
 
@@ -90,9 +124,9 @@ html, body {
 }
 
 .search-input-group {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--search-bg);
     border-radius: var(--border-radius-sm);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--search-border);
     overflow: hidden;
     transition: var(--transition);
 }
@@ -100,7 +134,7 @@ html, body {
 .search-input-group:focus-within {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.15);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--search-focus-bg);
 }
 
 .search-input-group .input-group-text {
@@ -801,7 +835,7 @@ html, body {
 }
 
 .info-window-row span {
-    color: #e2e8f0;
+    color: var(--color-text);
     line-height: 1.4;
 }
 
@@ -835,6 +869,63 @@ html, body {
 
 .gm-ui-hover-effect > span {
     background-color: rgba(255,255,255,0.7) !important;
+}
+
+/* ============================================================
+   THEME TOGGLE BUTTON
+============================================================ */
+.btn-theme {
+    background: var(--search-bg);
+    border: 1px solid var(--search-border);
+    color: var(--color-text-muted);
+    border-radius: var(--border-radius-sm);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.btn-theme:hover {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(0, 208, 132, 0.4);
+}
+
+/* ============================================================
+   LIGHT THEME COMPONENT OVERRIDES
+   (for things that can't be fixed with variables alone)
+============================================================ */
+
+/* btn-geo uses rgba-white in dark, needs rgba-black in light */
+[data-theme="light"] .btn-geo {
+    background: var(--search-bg);
+    border-color: var(--search-border);
+    color: var(--color-accent);
+}
+
+/* map overlay spinner text in light mode */
+[data-theme="light"] .overlay-content h4,
+[data-theme="light"] .overlay-content p {
+    color: var(--color-text);
+}
+
+/* Bootstrap close button is dark by default — hide invert in light mode */
+[data-theme="light"] .modal-custom .btn-close {
+    filter: none;
+}
+
+/* sidebar scrollbar in light mode */
+[data-theme="light"] .stations-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .stations-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
 }
 
 /* ============================================================
