@@ -1,0 +1,957 @@
+/* ============================================================
+   EV CHARGE LOCATOR — Estilos Personalizados
+   Paleta: verdes eléctricos, azules oscuros, blancos limpios
+   ============================================================ */
+
+/* ---- Variables CSS ---- */
+:root {
+    --color-primary:     #0d6efd;      /* Azul Bootstrap ajustado */
+    --color-accent:      #00d084;      /* Verde eléctrico principal */
+    --color-accent-dark: #00a86b;      /* Verde eléctrico oscuro (hover) */
+    --color-dark:        #0b1120;      /* Fondo oscuro profundo */
+    --color-dark-2:      #111827;      /* Fondo sidebar */
+    --color-dark-3:      #1a2535;      /* Tarjetas / cards */
+    --color-dark-4:      #232f45;      /* Borde sutil */
+    --color-text:        #e2e8f0;      /* Texto principal claro */
+    --color-text-muted:  #94a3b8;      /* Texto secundario */
+    --color-success:     #22c55e;
+    --color-warning:     #f59e0b;
+    --color-danger:      #ef4444;
+    --color-unknown:     #94a3b8;
+
+    --navbar-height:     64px;
+    --sidebar-width:     380px;
+    --border-radius:     12px;
+    --border-radius-sm:  8px;
+    --transition:        all 0.25s ease;
+    --shadow:            0 4px 24px rgba(0, 0, 0, 0.35);
+    --shadow-sm:         0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ---- Reset y base ---- */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--color-dark);
+    color: var(--color-text);
+    overflow: hidden; /* Evitar scroll de la página principal */
+}
+
+/* ============================================================
+   NAVBAR
+============================================================ */
+.navbar-custom {
+    background: linear-gradient(135deg, #0b1120 0%, #0d1f3c 100%);
+    border-bottom: 1px solid var(--color-dark-4);
+    height: var(--navbar-height);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+    z-index: 1050;
+}
+
+/* Icono del logo */
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--color-accent), #00a86b);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    box-shadow: 0 0 12px rgba(0, 208, 132, 0.4);
+    flex-shrink: 0;
+}
+
+/* Texto del logo */
+.brand-text {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #fff;
+    white-space: nowrap;
+}
+
+.brand-accent {
+    color: var(--color-accent);
+}
+
+/* ---- Formulario de búsqueda ---- */
+.search-form {
+    flex: 1;
+    max-width: 520px;
+    margin-left: 1.5rem;
+}
+
+.search-input-group {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: var(--border-radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    transition: var(--transition);
+}
+
+.search-input-group:focus-within {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(0, 208, 132, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.search-input-group .input-group-text {
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    padding-right: 4px;
+}
+
+.search-input-group .form-control {
+    background: transparent;
+    border: none;
+    color: var(--color-text);
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+    box-shadow: none;
+}
+
+.search-input-group .form-control::placeholder {
+    color: var(--color-text-muted);
+}
+
+.search-input-group .form-control:focus {
+    background: transparent;
+    color: var(--color-text);
+    box-shadow: none;
+}
+
+/* Botón Buscar */
+.btn-search {
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dark));
+    border: none;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    transition: var(--transition);
+    border-radius: 0;
+}
+
+.btn-search:hover {
+    background: linear-gradient(135deg, var(--color-accent-dark), #007a50);
+    color: #fff;
+}
+
+.btn-search .btn-text {
+    /* Ocultar texto en pantallas pequeñas */
+}
+
+/* Botón de geolocalización */
+.btn-geo {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--color-accent);
+    border-radius: var(--border-radius-sm);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.btn-geo:hover,
+.btn-geo.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(0, 208, 132, 0.4);
+}
+
+.btn-geo.loading {
+    animation: pulse-geo 1s infinite;
+}
+
+@keyframes pulse-geo {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 208, 132, 0.4); }
+    50%       { box-shadow: 0 0 0 8px rgba(0, 208, 132, 0); }
+}
+
+/* ============================================================
+   LAYOUT PRINCIPAL
+============================================================ */
+.main-container {
+    display: flex;
+    height: calc(100vh - var(--navbar-height));
+    margin-top: var(--navbar-height);
+    overflow: hidden;
+}
+
+/* ============================================================
+   SIDEBAR (panel lateral)
+============================================================ */
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background: var(--color-dark-2);
+    border-right: 1px solid var(--color-dark-4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 0.3s ease;
+    position: relative;
+    z-index: 10;
+}
+
+/* Cabecera del sidebar */
+.sidebar-header {
+    padding: 1rem 1.25rem 0.75rem;
+    border-bottom: 1px solid var(--color-dark-4);
+    background: var(--color-dark-2);
+    flex-shrink: 0;
+}
+
+.sidebar-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+/* Badge contador */
+.badge-count {
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    min-width: 24px;
+    border-radius: 12px;
+    padding: 2px 8px;
+}
+
+/* Filtros rápidos (pills) */
+.filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.pill {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text-muted);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.pill:hover {
+    background: rgba(0, 208, 132, 0.1);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.pill.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 208, 132, 0.3);
+}
+
+/* ---- Spinner de carga ---- */
+.loading-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.spinner-wrapper {
+    text-align: center;
+}
+
+.ev-spinner {
+    width: 64px;
+    height: 64px;
+    position: relative;
+    margin: 0 auto;
+}
+
+.spinner-ring {
+    width: 64px;
+    height: 64px;
+    border: 3px solid rgba(0, 208, 132, 0.15);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.spinner-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 22px;
+    color: var(--color-accent);
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-text {
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* ---- Mensaje de estado (inicial / error / sin resultados) ---- */
+.status-message {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem 1.5rem;
+}
+
+.status-icon {
+    width: 72px;
+    height: 72px;
+    background: rgba(0, 208, 132, 0.08);
+    border: 2px solid rgba(0, 208, 132, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    font-size: 28px;
+    color: var(--color-accent);
+}
+
+.status-message h6 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+}
+
+.status-message p {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    max-width: 260px;
+    margin: 0;
+}
+
+.status-message.error .status-icon {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--color-danger);
+}
+
+.status-message.no-results .status-icon {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: var(--color-warning);
+}
+
+/* ---- Lista de estaciones ---- */
+.stations-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+}
+
+/* Scrollbar personalizada para el panel */
+.stations-list::-webkit-scrollbar {
+    width: 4px;
+}
+.stations-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.stations-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+.stations-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Tarjeta de estación individual */
+.station-card {
+    background: var(--color-dark-3);
+    border: 1px solid var(--color-dark-4);
+    border-radius: var(--border-radius-sm);
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+}
+
+.station-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--color-dark-4);
+    transition: var(--transition);
+}
+
+.station-card:hover,
+.station-card.active {
+    border-color: rgba(0, 208, 132, 0.35);
+    background: rgba(0, 208, 132, 0.05);
+    transform: translateX(2px);
+}
+
+.station-card:hover::before,
+.station-card.active::before {
+    background: var(--color-accent);
+}
+
+.station-card.active {
+    box-shadow: 0 0 0 1px rgba(0, 208, 132, 0.2);
+}
+
+/* Indicador de estado dentro de la tarjeta */
+.station-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.station-status.operational {
+    background: rgba(34, 197, 94, 0.12);
+    color: var(--color-success);
+}
+
+.station-status.unknown {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--color-unknown);
+}
+
+.station-status.offline {
+    background: rgba(239, 68, 68, 0.12);
+    color: var(--color-danger);
+}
+
+/* Nombre de la estación en la tarjeta */
+.station-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0.25rem 0 0.2rem;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Dirección en la tarjeta */
+.station-address {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Meta info (conectores, distancia) */
+.station-meta {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.station-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+}
+
+.station-meta-item i {
+    color: var(--color-accent);
+    font-size: 0.75rem;
+}
+
+/* ============================================================
+   SECCIÓN DEL MAPA
+============================================================ */
+.map-section {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+#map {
+    width: 100%;
+    height: 100%;
+}
+
+/* Overlay inicial (mientras carga el mapa) */
+.map-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--color-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: opacity 0.5s ease;
+}
+
+.map-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.overlay-content {
+    text-align: center;
+}
+
+.overlay-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dark));
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+    font-size: 36px;
+    color: #fff;
+    box-shadow: 0 0 30px rgba(0, 208, 132, 0.4);
+    animation: pulse-icon 2s infinite;
+}
+
+@keyframes pulse-icon {
+    0%, 100% { box-shadow: 0 0 20px rgba(0, 208, 132, 0.3); }
+    50%       { box-shadow: 0 0 40px rgba(0, 208, 132, 0.6); }
+}
+
+.overlay-content h4 {
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.5rem;
+}
+
+.overlay-content p {
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+}
+
+.bg-accent {
+    background-color: var(--color-accent) !important;
+}
+
+/* ---- Botón flotante (FAB) en móvil ---- */
+.btn-fab {
+    display: none; /* Solo visible en móvil */
+    position: absolute;
+    bottom: 24px;
+    right: 24px;
+    width: 52px;
+    height: 52px;
+    background: var(--color-accent);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 1.1rem;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(0, 208, 132, 0.4);
+    z-index: 50;
+    transition: var(--transition);
+}
+
+.btn-fab:hover {
+    background: var(--color-accent-dark);
+    transform: scale(1.08);
+}
+
+.fab-badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--color-danger);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+/* ============================================================
+   TOAST / NOTIFICACIONES
+============================================================ */
+.toast {
+    background: var(--color-dark-3);
+    border: 1px solid var(--color-dark-4);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow);
+    min-width: 280px;
+}
+
+.toast.success {
+    border-left: 4px solid var(--color-success);
+}
+
+.toast.error {
+    border-left: 4px solid var(--color-danger);
+}
+
+.toast.info {
+    border-left: 4px solid var(--color-accent);
+}
+
+.toast.warning {
+    border-left: 4px solid var(--color-warning);
+}
+
+.toast-body {
+    color: var(--color-text);
+    font-size: 0.85rem;
+    padding: 0.85rem 1rem;
+}
+
+/* ============================================================
+   MODAL
+============================================================ */
+.modal-custom {
+    background: var(--color-dark-2);
+    border: 1px solid var(--color-dark-4);
+    border-radius: var(--border-radius);
+}
+
+.modal-custom .modal-header {
+    padding: 1.25rem 1.5rem 1rem;
+}
+
+.modal-custom .modal-title {
+    font-weight: 700;
+    color: var(--color-text);
+    font-size: 1rem;
+}
+
+.modal-custom .btn-close {
+    filter: invert(1) grayscale(1) brightness(1.5);
+}
+
+.modal-custom .modal-body {
+    padding: 0 1.5rem 1rem;
+}
+
+/* Grid de datos del modal */
+.modal-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.modal-info-item {
+    background: var(--color-dark-3);
+    border: 1px solid var(--color-dark-4);
+    border-radius: var(--border-radius-sm);
+    padding: 0.75rem 1rem;
+}
+
+.modal-info-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.modal-info-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+/* Lista de conectores en el modal */
+.connector-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.connector-tag {
+    background: rgba(0, 208, 132, 0.1);
+    border: 1px solid rgba(0, 208, 132, 0.2);
+    color: var(--color-accent);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Botón acento en modal */
+.btn-accent {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #fff;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.btn-accent:hover {
+    background: var(--color-accent-dark);
+    border-color: var(--color-accent-dark);
+    color: #fff;
+}
+
+/* ============================================================
+   GOOGLE MAPS — InfoWindow personalizado
+============================================================ */
+.gm-style .gm-style-iw-c {
+    background: var(--color-dark-3) !important;
+    border-radius: var(--border-radius-sm) !important;
+    padding: 0 !important;
+    box-shadow: var(--shadow) !important;
+    border: 1px solid var(--color-dark-4) !important;
+    max-width: 280px !important;
+}
+
+.gm-style .gm-style-iw-d {
+    overflow: hidden !important;
+}
+
+.gm-style .gm-style-iw-t::after {
+    background: var(--color-dark-3) !important;
+}
+
+/* Contenido del InfoWindow */
+.info-window {
+    padding: 0;
+    min-width: 220px;
+    max-width: 280px;
+}
+
+.info-window-header {
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dark));
+    padding: 0.6rem 1rem;
+    border-radius: 6px 6px 0 0;
+}
+
+.info-window-header h6 {
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.info-window-body {
+    padding: 0.75rem 1rem;
+}
+
+.info-window-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 0.45rem;
+    font-size: 0.77rem;
+}
+
+.info-window-row:last-child {
+    margin-bottom: 0;
+}
+
+.info-window-row i {
+    color: var(--color-accent);
+    font-size: 0.8rem;
+    margin-top: 1px;
+    flex-shrink: 0;
+}
+
+.info-window-row span {
+    color: #e2e8f0;
+    line-height: 1.4;
+}
+
+.info-window-btn {
+    width: 100%;
+    margin-top: 0.75rem;
+    background: var(--color-accent);
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.info-window-btn:hover {
+    background: var(--color-accent-dark);
+}
+
+/* Botón de cierre del InfoWindow */
+.gm-style .gm-style-iw-ch {
+    display: none !important;
+}
+
+.gm-ui-hover-effect {
+    top: 2px !important;
+    right: 2px !important;
+}
+
+.gm-ui-hover-effect > span {
+    background-color: rgba(255,255,255,0.7) !important;
+}
+
+/* ============================================================
+   RESPONSIVE — Tablets y móviles
+============================================================ */
+@media (max-width: 991px) {
+    :root {
+        --sidebar-width: 320px;
+    }
+}
+
+@media (max-width: 767px) {
+    /* En móvil el layout es vertical */
+    .main-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        min-width: unset;
+        height: 50vh;
+        border-right: none;
+        border-top: 1px solid var(--color-dark-4);
+        order: 2; /* Panel debajo del mapa */
+        transform: translateY(100%);
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sidebar.open {
+        transform: translateY(0);
+    }
+
+    .map-section {
+        height: 100vh;
+        order: 1;
+    }
+
+    .btn-fab {
+        display: flex;
+    }
+
+    /* Búsqueda en navbar — compacta en móvil */
+    .search-form {
+        margin-left: 0.5rem;
+        max-width: unset;
+        flex: 1;
+    }
+
+    .btn-search .btn-text {
+        display: none;
+    }
+
+    .brand-text {
+        display: none;
+    }
+
+    .modal-info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar-custom {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+}
+
+/* ============================================================
+   UTILIDADES
+============================================================ */
+.text-accent {
+    color: var(--color-accent) !important;
+}
+
+.d-none {
+    display: none !important;
+}
+
+/* Animación de entrada para las tarjetas */
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.station-card {
+    animation: slideInUp 0.3s ease forwards;
+}
+
+/* Retrasos escalonados para las tarjetas */
+.station-card:nth-child(1)  { animation-delay: 0.00s; }
+.station-card:nth-child(2)  { animation-delay: 0.04s; }
+.station-card:nth-child(3)  { animation-delay: 0.08s; }
+.station-card:nth-child(4)  { animation-delay: 0.12s; }
+.station-card:nth-child(5)  { animation-delay: 0.16s; }
+.station-card:nth-child(6)  { animation-delay: 0.20s; }
+.station-card:nth-child(7)  { animation-delay: 0.24s; }
+.station-card:nth-child(8)  { animation-delay: 0.28s; }
+.station-card:nth-child(9)  { animation-delay: 0.32s; }
+.station-card:nth-child(10) { animation-delay: 0.36s; }
