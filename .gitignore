@@ -1,6 +1,10 @@
 # Claves de API — nunca subir al repositorio
 js/config.js
 
+# Tunnel binaries — local dev tools, not part of the app
+ngrok
+cloudflared
+
 # Archivos de sistema
 .DS_Store
 Thumbs.db
