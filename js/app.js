@@ -368,9 +368,17 @@ function openInfoWindow(marker, station) {
                     <i class="fa-solid fa-tag"></i>
                     <span>${escapeHtml(cost)}</span>
                 </div>` : ''}
-                <button class="info-window-btn" onclick="openStationModal(${station.ID})">
-                    <i class="fa-solid fa-circle-info"></i> View full details
-                </button>
+                <div style="display:flex;gap:6px;margin-top:0.75rem;">
+                    <button class="info-window-btn" style="margin-top:0;"
+                            onclick="openStationModal(${station.ID})">
+                        <i class="fa-solid fa-circle-info"></i> Details
+                    </button>
+                    <a class="info-window-btn" style="margin-top:0;text-align:center;text-decoration:none;"
+                       href="https://www.google.com/maps/dir/?api=1&destination=${info.Latitude},${info.Longitude}"
+                       target="_blank" rel="noopener">
+                        <i class="fa-solid fa-diamond-turn-right"></i> Navigate
+                    </a>
+                </div>
             </div>
         </div>`;
 
@@ -481,6 +489,11 @@ function openStationModal(stationId) {
 
     $('#stationModalLabel').text(info.Title);
     $('#modalAddress').text(buildAddress(info));
+
+    // Wire the Navigate button to this station's coordinates
+    const navUrl = 'https://www.google.com/maps/dir/?api=1&destination='
+                   + info.Latitude + ',' + info.Longitude;
+    $('#modalNavigateBtn').attr('href', navUrl);
 
     const statusText  = getStatusText(station.StatusType);
     const statusClass = getStatusClass(station.StatusType);
