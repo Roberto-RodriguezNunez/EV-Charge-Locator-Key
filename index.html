@@ -42,21 +42,27 @@
 
             <!-- Search form -->
             <form id="searchForm" class="d-flex align-items-center gap-2 search-form" onsubmit="return false;">
-                <div class="input-group search-input-group">
-                    <span class="input-group-text bg-transparent border-end-0">
-                        <i class="bi bi-search text-muted"></i>
-                    </span>
-                    <input
-                        type="text"
-                        id="searchInput"
-                        class="form-control border-start-0"
-                        placeholder="City or address..."
-                        autocomplete="off"
-                    >
-                    <button class="btn btn-search" type="submit" id="searchBtn">
-                        <span class="btn-text">Search</span>
-                        <i class="bi bi-arrow-right-short fs-5"></i>
-                    </button>
+
+                <!-- Wrapper needed for the history dropdown -->
+                <div class="search-wrapper">
+                    <div class="input-group search-input-group">
+                        <span class="input-group-text bg-transparent border-end-0">
+                            <i class="bi bi-search text-muted"></i>
+                        </span>
+                        <input
+                            type="text"
+                            id="searchInput"
+                            class="form-control border-start-0"
+                            placeholder="City or address..."
+                            autocomplete="off"
+                        >
+                        <button class="btn btn-search" type="submit" id="searchBtn">
+                            <span class="btn-text">Search</span>
+                            <i class="bi bi-arrow-right-short fs-5"></i>
+                        </button>
+                    </div>
+                    <!-- Search history dropdown -->
+                    <div id="searchHistoryDropdown" class="search-history-dropdown d-none"></div>
                 </div>
 
                 <!-- Geolocation button -->
@@ -89,6 +95,18 @@
                         Stations found
                     </h6>
                     <div class="d-flex align-items-center gap-2">
+                        <!-- View toggle (desktop only) -->
+                        <div class="view-toggle d-none d-md-flex" id="viewToggle">
+                            <button class="view-btn active" id="viewBoth" title="Map + List">
+                                <i class="bi bi-layout-split"></i>
+                            </button>
+                            <button class="view-btn" id="viewMap" title="Map only">
+                                <i class="bi bi-map"></i>
+                            </button>
+                            <button class="view-btn" id="viewList" title="List only">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
+                        </div>
                         <span class="badge badge-count" id="stationsCount">0</span>
                         <button class="btn btn-sidebar-close" id="closePanelBtn" title="Close panel">
                             <i class="bi bi-chevron-down"></i>
@@ -101,6 +119,105 @@
                     <button class="pill active" data-filter="all">All</button>
                     <button class="pill" data-filter="operational">Operational</button>
                     <button class="pill" data-filter="unknown">Unknown</button>
+                    <button class="pill" data-filter="favorites">
+                        <i class="bi bi-star-fill me-1"></i>Saved
+                    </button>
+                </div>
+
+                <!-- Advanced filters toggle row -->
+                <div class="d-flex align-items-center justify-content-between mt-2">
+                    <button class="btn-advanced-filter" id="advancedFilterToggle">
+                        <i class="bi bi-sliders me-1"></i>
+                        Filters
+                        <i class="bi bi-chevron-down ms-1" id="advFilterChevron"></i>
+                    </button>
+                    <span class="filter-active-indicator d-none" id="filterActiveIndicator">
+                        <i class="bi bi-funnel-fill me-1"></i> Active
+                    </span>
+                </div>
+            </div>
+
+            <!-- Advanced filters panel (collapsible) -->
+            <div id="advancedFiltersPanel" class="advanced-filters d-none">
+
+                <!-- Search radius slider -->
+                <div class="filter-section">
+                    <label class="filter-label" for="radiusSlider">
+                        Search radius: <strong id="radiusValue">10</strong> km
+                    </label>
+                    <input type="range" id="radiusSlider" min="1" max="50" value="10" class="filter-slider">
+                </div>
+
+                <!-- Connector type -->
+                <div class="filter-section">
+                    <div class="filter-label">Connector type</div>
+                    <div class="filter-checks">
+                        <label class="filter-check">
+                            <input type="checkbox" name="connector" value="ccs"> CCS
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="connector" value="chademo"> CHAdeMO
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="connector" value="type2"> Type 2
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="connector" value="type1"> Type 1
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Charge speed -->
+                <div class="filter-section">
+                    <div class="filter-label">Charge speed</div>
+                    <div class="filter-checks">
+                        <label class="filter-check">
+                            <input type="checkbox" name="speed" value="slow"> Slow (&le;7kW)
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="speed" value="fast"> Fast (7&ndash;50kW)
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="speed" value="ultra"> Ultra (&gt;50kW)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Cost -->
+                <div class="filter-section">
+                    <div class="filter-label">Cost</div>
+                    <div class="filter-checks">
+                        <label class="filter-check">
+                            <input type="checkbox" name="cost" value="free"> Free
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="cost" value="paid"> Paid
+                        </label>
+                    </div>
+                </div>
+
+                <button class="btn-reset-filters" id="resetFilters">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Reset all filters
+                </button>
+            </div>
+
+            <!-- Zone statistics (shown after search) -->
+            <div id="zoneStats" class="zone-stats d-none">
+                <div class="stat-item">
+                    <span class="stat-value" id="statTotal">0</span>
+                    <span class="stat-label">Total</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statOperational">0</span>
+                    <span class="stat-label">Online</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statConnTypes">0</span>
+                    <span class="stat-label">Conn. types</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statAvgPower">&mdash;</span>
+                    <span class="stat-label">Avg kW</span>
                 </div>
             </div>
 
@@ -127,10 +244,21 @@
             <!-- Station list -->
             <div id="stationsList" class="stations-list d-none"></div>
 
+            <!-- Compare bar (shown when stations are selected) -->
+            <div id="compareBar" class="compare-bar d-none">
+                <span id="compareCount">0 selected</span>
+                <button class="btn-compare" id="compareBtn" disabled>
+                    <i class="bi bi-bar-chart me-1"></i> Compare
+                </button>
+                <button class="btn-compare-clear" id="compareClearBtn" title="Clear selection">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
         </aside>
 
         <!-- MAP SECTION -->
-        <section class="map-section">
+        <section class="map-section" id="mapSection">
             <div id="map"></div>
 
             <!-- Overlay shown while map loads -->
@@ -191,6 +319,25 @@
         </div>
     </div>
 
+    <!-- COMPARISON MODAL -->
+    <div class="modal fade" id="compareModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content modal-custom">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">
+                        <i class="bi bi-bar-chart me-2 text-accent"></i>
+                        Station Comparison
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="compareModalBody"></div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- SCRIPTS -->
 
     <!-- jQuery (must load before app.js) -->
@@ -198,6 +345,9 @@
 
     <!-- Bootstrap 5 bundle (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- MarkerClusterer for Google Maps -->
+    <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 
     <!-- API keys — defined in config.js (excluded from git) -->
     <script src="js/config.js"></script>

@@ -123,6 +123,13 @@ html, body {
     margin-left: 1.5rem;
 }
 
+/* Wrapper for input group + history dropdown */
+.search-wrapper {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+}
+
 .search-input-group {
     background: var(--search-bg);
     border-radius: var(--border-radius-sm);
@@ -217,6 +224,95 @@ html, body {
 }
 
 /* ============================================================
+   SEARCH HISTORY DROPDOWN
+============================================================ */
+.search-history-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--color-dark-2);
+    border: 1px solid var(--color-dark-4);
+    border-radius: var(--border-radius-sm);
+    box-shadow: var(--shadow);
+    z-index: 2000;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid var(--color-dark-4);
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    background: rgba(255,255,255,0.03);
+}
+
+.history-clear-all {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 0;
+    transition: var(--transition);
+}
+
+.history-clear-all:hover {
+    color: var(--color-accent-dark);
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--color-text);
+    transition: background 0.15s ease;
+}
+
+.history-item:hover {
+    background: rgba(0, 208, 132, 0.07);
+}
+
+.history-item i.bi-clock-history {
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+}
+
+.history-item span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.history-remove {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0.5;
+    transition: var(--transition);
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.history-remove:hover {
+    opacity: 1;
+    color: var(--color-danger);
+}
+
+/* ============================================================
    MAIN LAYOUT
 ============================================================ */
 .main-container {
@@ -242,8 +338,13 @@ html, body {
     z-index: 10;
 }
 
+/* View mode overrides (desktop only) */
+.sidebar.view-hidden  { display: none !important; }
+.sidebar.view-full    { width: 100% !important; min-width: 100% !important; max-width: 100% !important; }
+.map-section.view-hidden { display: none !important; }
+
 .sidebar-header {
-    padding: 1rem 1.25rem 0.75rem;
+    padding: 0.85rem 1.25rem 0.75rem;
     border-bottom: 1px solid var(--color-dark-4);
     background: var(--color-dark-2);
     flex-shrink: 0;
@@ -271,7 +372,7 @@ html, body {
 /* Filter pills */
 .filter-pills {
     display: flex;
-    gap: 6px;
+    gap: 5px;
     flex-wrap: wrap;
 }
 
@@ -280,8 +381,8 @@ html, body {
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--color-text-muted);
     border-radius: 20px;
-    padding: 3px 12px;
-    font-size: 0.75rem;
+    padding: 3px 10px;
+    font-size: 0.73rem;
     font-weight: 500;
     cursor: pointer;
     transition: var(--transition);
@@ -300,7 +401,207 @@ html, body {
     box-shadow: 0 2px 8px rgba(0, 208, 132, 0.3);
 }
 
-/* Loading spinner */
+/* ============================================================
+   ADVANCED FILTERS
+============================================================ */
+.btn-advanced-filter {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--color-text-muted);
+    border-radius: 6px;
+    font-size: 0.73rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-advanced-filter:hover,
+.btn-advanced-filter.active {
+    background: rgba(0, 208, 132, 0.1);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+#advFilterChevron {
+    transition: transform 0.2s ease;
+}
+
+.filter-active-indicator {
+    font-size: 0.72rem;
+    color: var(--color-warning);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+}
+
+.advanced-filters {
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--color-dark-4);
+    background: rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.filter-section {
+    margin-bottom: 0.75rem;
+}
+
+.filter-section:last-of-type {
+    margin-bottom: 0.6rem;
+}
+
+.filter-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 0.45rem;
+    display: block;
+}
+
+.filter-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.filter-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--color-text);
+    cursor: pointer;
+    padding: 4px 9px;
+    background: var(--color-dark-3);
+    border: 1px solid var(--color-dark-4);
+    border-radius: 6px;
+    transition: var(--transition);
+    user-select: none;
+}
+
+.filter-check:hover {
+    border-color: var(--color-accent);
+    background: rgba(0, 208, 132, 0.06);
+}
+
+.filter-check input[type="checkbox"] {
+    accent-color: var(--color-accent);
+    cursor: pointer;
+    width: 13px;
+    height: 13px;
+    margin: 0;
+}
+
+.filter-slider {
+    width: 100%;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+    height: 4px;
+    margin-top: 6px;
+    display: block;
+}
+
+.btn-reset-filters {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--color-danger);
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-reset-filters:hover {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: var(--color-danger);
+}
+
+/* ============================================================
+   ZONE STATISTICS
+============================================================ */
+.zone-stats {
+    display: flex;
+    border-bottom: 1px solid var(--color-dark-4);
+    background: rgba(0, 208, 132, 0.04);
+    flex-shrink: 0;
+}
+
+.stat-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.55rem 0.25rem;
+    border-right: 1px solid var(--color-dark-4);
+}
+
+.stat-item:last-child {
+    border-right: none;
+}
+
+.stat-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.6rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 3px;
+}
+
+/* ============================================================
+   VIEW TOGGLE (desktop)
+============================================================ */
+.view-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--color-dark-3);
+    border: 1px solid var(--color-dark-4);
+    border-radius: 7px;
+    padding: 2px;
+}
+
+.view-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    border-radius: 5px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: var(--transition);
+    padding: 0;
+    line-height: 1;
+}
+
+.view-btn.active {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.view-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--color-text);
+}
+
+/* ============================================================
+   LOADING SPINNER
+============================================================ */
 .loading-container {
     flex: 1;
     display: flex;
@@ -403,7 +704,9 @@ html, body {
     color: var(--color-warning);
 }
 
-/* Station list */
+/* ============================================================
+   STATION LIST
+============================================================ */
 .stations-list {
     flex: 1;
     overflow-y: auto;
@@ -462,6 +765,56 @@ html, body {
     box-shadow: 0 0 0 1px rgba(0, 208, 132, 0.2);
 }
 
+/* Card top row: status + actions */
+.card-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 0.1rem;
+}
+
+.card-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.card-distance {
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    padding: 0 2px;
+}
+
+/* Action buttons on card */
+.btn-card-action {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+    padding: 3px 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: var(--transition);
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-card-action:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text);
+}
+
+.btn-card-action.btn-favorite.active {
+    color: var(--color-warning);
+}
+
+.btn-card-action.btn-compare-check.active {
+    color: var(--color-accent);
+}
+
 /* Status badge inside card */
 .station-status {
     display: inline-flex;
@@ -473,6 +826,7 @@ html, body {
     border-radius: 10px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
+    white-space: nowrap;
 }
 
 .station-status.operational {
@@ -531,6 +885,124 @@ html, body {
 .station-meta-item i {
     color: var(--color-accent);
     font-size: 0.75rem;
+}
+
+/* ============================================================
+   COMPARE BAR
+============================================================ */
+.compare-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.65rem 1rem;
+    background: rgba(0, 208, 132, 0.07);
+    border-top: 1px solid rgba(0, 208, 132, 0.2);
+    flex-shrink: 0;
+}
+
+.compare-bar span {
+    font-size: 0.8rem;
+    color: var(--color-accent);
+    font-weight: 600;
+    flex: 1;
+}
+
+.btn-compare {
+    background: var(--color-accent);
+    border: none;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.btn-compare:hover:not(:disabled) {
+    background: var(--color-accent-dark);
+}
+
+.btn-compare:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.btn-compare-clear {
+    background: none;
+    border: 1px solid var(--color-dark-4);
+    color: var(--color-text-muted);
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: var(--transition);
+    line-height: 1;
+}
+
+.btn-compare-clear:hover {
+    border-color: var(--color-danger);
+    color: var(--color-danger);
+}
+
+/* ============================================================
+   COMPARE TABLE (inside comparison modal)
+============================================================ */
+.compare-table-wrapper {
+    overflow-x: auto;
+}
+
+.compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    min-width: 360px;
+}
+
+.compare-table thead th {
+    background: var(--color-dark-3);
+    color: var(--color-text);
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 2px solid var(--color-accent);
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.8rem;
+}
+
+.compare-table thead th.compare-feature-col {
+    background: var(--color-dark-2);
+    color: var(--color-text-muted);
+    border-bottom-color: var(--color-dark-4);
+    width: 130px;
+    min-width: 130px;
+}
+
+.compare-table td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--color-dark-4);
+    color: var(--color-text);
+    vertical-align: middle;
+}
+
+.compare-table td.compare-feature {
+    background: var(--color-dark-3);
+    color: var(--color-text-muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.compare-table tr:hover td:not(.compare-feature) {
+    background: rgba(0, 208, 132, 0.04);
 }
 
 /* ============================================================
@@ -649,6 +1121,7 @@ html, body {
     transition: var(--transition);
     flex-shrink: 0;
 }
+
 .btn-sidebar-close:hover {
     background: var(--color-dark-4);
     color: var(--color-text);
@@ -780,7 +1253,7 @@ html, body {
     color: #fff;
 }
 
-/* Navigate button — blue, sits next to btn-accent in the modal footer */
+/* Navigate button */
 .btn-navigate {
     background: var(--color-primary);
     border: 1px solid var(--color-primary);
@@ -806,7 +1279,7 @@ html, body {
     padding: 0 !important;
     box-shadow: var(--shadow) !important;
     border: 1px solid var(--color-dark-4) !important;
-    max-width: 280px !important;
+    max-width: 300px !important;
 }
 
 .gm-style .gm-style-iw-d {
@@ -819,8 +1292,8 @@ html, body {
 
 .info-window {
     padding: 0;
-    min-width: 220px;
-    max-width: 280px;
+    min-width: 230px;
+    max-width: 300px;
 }
 
 .info-window-header {
@@ -866,7 +1339,7 @@ html, body {
 }
 
 .info-window-btn {
-    width: 100%;
+    flex: 1;
     margin-top: 0.75rem;
     background: var(--color-accent);
     border: none;
@@ -877,10 +1350,27 @@ html, body {
     font-weight: 600;
     cursor: pointer;
     transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-decoration: none;
 }
 
 .info-window-btn:hover {
     background: var(--color-accent-dark);
+    color: #fff;
+}
+
+.info-window-btn-star {
+    flex: none !important;
+    background: rgba(245, 158, 11, 0.15) !important;
+    border: 1px solid rgba(245, 158, 11, 0.3) !important;
+    color: var(--color-warning) !important;
+}
+
+.info-window-btn-star:hover {
+    background: rgba(245, 158, 11, 0.3) !important;
 }
 
 /* Hide default close button in InfoWindow */
@@ -924,34 +1414,51 @@ html, body {
 
 /* ============================================================
    LIGHT THEME COMPONENT OVERRIDES
-   (for things that can't be fixed with variables alone)
 ============================================================ */
-
-/* btn-geo uses rgba-white in dark, needs rgba-black in light */
 [data-theme="light"] .btn-geo {
     background: var(--search-bg);
     border-color: var(--search-border);
     color: var(--color-accent);
 }
 
-/* map overlay spinner text in light mode */
 [data-theme="light"] .overlay-content h4,
 [data-theme="light"] .overlay-content p {
     color: var(--color-text);
 }
 
-/* Bootstrap close button is dark by default — hide invert in light mode */
 [data-theme="light"] .modal-custom .btn-close {
     filter: none;
 }
 
-/* sidebar scrollbar in light mode */
 [data-theme="light"] .stations-list::-webkit-scrollbar-thumb {
     background: rgba(0, 0, 0, 0.12);
 }
 
 [data-theme="light"] .stations-list::-webkit-scrollbar-thumb:hover {
     background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .btn-advanced-filter {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .history-header {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .filter-check {
+    background: var(--color-dark-3);
+    border-color: var(--color-dark-4);
+}
+
+[data-theme="light"] .view-toggle {
+    background: var(--color-dark-3);
+    border-color: var(--color-dark-4);
+}
+
+[data-theme="light"] .view-btn:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.05);
 }
 
 /* ============================================================
@@ -968,7 +1475,7 @@ html, body {
         flex-direction: column;
     }
 
-    /* Map always full-height — sidebar overlays it, never shrinks it */
+    /* Map always full-height */
     .map-section {
         height: 100%;
         order: 1;
@@ -979,7 +1486,7 @@ html, body {
     .sidebar {
         width: 100%;
         min-width: unset;
-        height: 60vh;
+        height: 65vh;
         border-right: none;
         border-top: none;
         border-radius: 16px 16px 0 0;
@@ -1014,8 +1521,7 @@ html, body {
         display: flex;
     }
 
-    /* FAB: fixed so overflow:hidden on map-section can't clip it,
-       bottom:90px clears Android Chrome's nav bar (~48-56px) */
+    /* FAB: fixed to avoid overflow:hidden clipping */
     .btn-fab {
         display: flex;
         position: fixed;
@@ -1052,6 +1558,21 @@ html, body {
 
     .modal-info-grid {
         grid-template-columns: 1fr;
+    }
+
+    /* Hide view toggle on mobile */
+    .view-toggle {
+        display: none !important;
+    }
+
+    /* Disable view-hidden on mobile (sidebar is already an overlay) */
+    .sidebar.view-hidden,
+    .map-section.view-hidden {
+        display: flex !important;
+    }
+
+    .sidebar.view-full {
+        width: 100% !important;
     }
 }
 
