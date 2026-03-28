@@ -1,8 +1,7 @@
 # Claves de API — nunca subir al repositorio
 js/config.js
 
-# Tunnel binaries — local dev tools, not part of the app
-ngrok
+# Tunnel binary — local dev tool, not part of the app
 cloudflared
 
 # Archivos de sistema
