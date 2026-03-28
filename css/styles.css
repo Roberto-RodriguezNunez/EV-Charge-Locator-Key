@@ -607,8 +607,8 @@ html, body {
 .btn-fab {
     display: none;
     position: absolute;
-    bottom: 24px;
-    right: 24px;
+    bottom: 20px;
+    right: 16px;
     width: 52px;
     height: 52px;
     background: var(--color-accent);
@@ -621,11 +621,40 @@ html, body {
     box-shadow: 0 4px 16px rgba(0, 208, 132, 0.4);
     z-index: 50;
     transition: var(--transition);
+    /* keep fully inside safe area on notched phones */
+    margin-bottom: env(safe-area-inset-bottom, 0px);
+    margin-right: env(safe-area-inset-right, 0px);
 }
 
 .btn-fab:hover {
     background: var(--color-accent-dark);
     transform: scale(1.08);
+}
+
+/* Sidebar drag handle — hidden on desktop */
+.sidebar-drag-handle {
+    display: none;
+}
+
+/* Sidebar close button — hidden on desktop */
+.btn-sidebar-close {
+    display: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--color-dark-4);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+.btn-sidebar-close:hover {
+    background: var(--color-dark-4);
+    color: var(--color-text);
 }
 
 .fab-badge {
@@ -936,17 +965,28 @@ html, body {
 }
 
 @media (max-width: 767px) {
-    /* Stack vertically on mobile */
+    /* Map fills the whole container; sidebar slides up as an overlay */
     .main-container {
+        position: relative;
         flex-direction: column;
     }
 
+    /* Map always full-height — sidebar overlays it, never shrinks it */
+    .map-section {
+        height: 100%;
+        order: 1;
+        flex: 1 1 auto;
+    }
+
+    /* Bottom-sheet panel */
     .sidebar {
         width: 100%;
         min-width: unset;
-        height: 50vh;
+        height: 60vh;
         border-right: none;
-        border-top: 1px solid var(--color-dark-4);
+        border-top: none;
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
         order: 2;
         transform: translateY(100%);
         position: absolute;
@@ -961,26 +1001,49 @@ html, body {
         transform: translateY(0);
     }
 
-    .map-section {
-        height: 100vh;
-        order: 1;
+    /* Drag handle pill */
+    .sidebar-drag-handle {
+        display: block;
+        width: 36px;
+        height: 4px;
+        background: var(--color-dark-4);
+        border-radius: 2px;
+        margin: 10px auto 4px;
+        flex-shrink: 0;
     }
 
+    /* Close button inside sidebar header */
+    .btn-sidebar-close {
+        display: flex;
+    }
+
+    /* Show FAB */
     .btn-fab {
         display: flex;
     }
 
+    /* Navbar: prevent search bar from overflowing */
     .search-form {
-        margin-left: 0.5rem;
+        margin-left: 0.25rem;
         max-width: unset;
         flex: 1;
+        min-width: 0;
     }
 
-    /* Hide search button label on small screens */
+    .search-input-group {
+        min-width: 0;
+    }
+
+    #searchInput {
+        min-width: 0;
+    }
+
+    /* Hide search button text label */
     .btn-search .btn-text {
         display: none;
     }
 
+    /* Hide brand text, keep icon */
     .brand-text {
         display: none;
     }
@@ -992,8 +1055,25 @@ html, body {
 
 @media (max-width: 480px) {
     .navbar-custom {
-        padding-left: 0.75rem !important;
-        padding-right: 0.75rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    .brand-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 0.75rem;
+    }
+
+    .btn-geo,
+    .btn-theme {
+        width: 34px;
+        height: 34px;
+        font-size: 0.85rem;
+    }
+
+    .btn-search {
+        padding: 0 0.6rem;
     }
 }
 
