@@ -235,9 +235,8 @@ function fetchChargingStations(lat, lng) {
             longitude:    lng,
             distance:     CONFIG.searchRadiusKm,
             distanceunit: 'KM',
-            maxresults:   CONFIG.maxResults,
-            compact:      true,
-            verbose:      false
+            maxresults:   CONFIG.maxResults
+            // compact and verbose omitted — defaults (false/true) return full reference data
         },
         success: function(data) {
             hideLoadingSpinner();
@@ -340,6 +339,7 @@ function openInfoWindow(marker, station) {
     const statusText = getStatusText(station.StatusType);
     const statusColor= getStatusColor(station.StatusType);
     const numPoints  = station.NumberOfPoints || 'N/A';
+    const cost       = station.UsageCost || '';
 
     const content = `
         <div class="info-window">
@@ -363,6 +363,11 @@ function openInfoWindow(marker, station) {
                     <i class="fa-solid fa-charging-station"></i>
                     <span>${numPoints} charging point(s)</span>
                 </div>
+                ${cost ? `
+                <div class="info-window-row">
+                    <i class="fa-solid fa-tag"></i>
+                    <span>${escapeHtml(cost)}</span>
+                </div>` : ''}
                 <button class="info-window-btn" onclick="openStationModal(${station.ID})">
                     <i class="fa-solid fa-circle-info"></i> View full details
                 </button>
@@ -482,6 +487,7 @@ function openStationModal(stationId) {
     const numPoints   = station.NumberOfPoints || 'N/A';
     const operator    = station.OperatorInfo ? station.OperatorInfo.Title : 'Not available';
     const usageType   = station.UsageType    ? station.UsageType.Title    : 'Not available';
+    const cost        = station.UsageCost    || '';
 
     let connectorsHtml = '<div class="connector-list">';
     if (station.Connections && station.Connections.length > 0) {
@@ -521,6 +527,11 @@ function openStationModal(stationId) {
                 <div class="modal-info-value">${escapeHtml(usageType)}</div>
             </div>
         </div>
+        ${cost ? `
+        <div class="modal-info-item">
+            <div class="modal-info-label"><i class="fa-solid fa-tag me-1"></i>Usage cost</div>
+            <div class="modal-info-value">${escapeHtml(cost)}</div>
+        </div>` : ''}
         <div class="modal-info-item mb-0">
             <div class="modal-info-label mb-2"><i class="fa-solid fa-plug me-1"></i>Available connectors</div>
             ${connectorsHtml}
