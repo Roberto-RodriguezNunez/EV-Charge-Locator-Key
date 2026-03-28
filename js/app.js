@@ -48,8 +48,61 @@ function initMap() {
     attemptGeolocation();
 }
 
-/* Dark map theme */
+/* ============================================================
+   THEME
+============================================================ */
+
+function initTheme() {
+    var saved  = localStorage.getItem('ev-theme');
+    var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+    applyTheme(saved || system, false);
+
+    // Follow system changes only when the user hasn't manually picked a theme
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        if (!localStorage.getItem('ev-theme')) {
+            applyTheme(e.matches ? 'dark' : 'light', true);
+        }
+    });
+}
+
+function applyTheme(theme, updateMap) {
+    // Briefly add class so CSS transitions fire during the switch
+    document.documentElement.classList.add('theme-switching');
+    document.documentElement.setAttribute('data-theme', theme);
+    setTimeout(function() {
+        document.documentElement.classList.remove('theme-switching');
+    }, 300);
+
+    // Update button icon and tooltip
+    if (theme === 'dark') {
+        $('#themeBtn').find('i').attr('class', 'bi bi-sun-fill');
+        $('#themeBtn').attr('title', 'Switch to light mode');
+    } else {
+        $('#themeBtn').find('i').attr('class', 'bi bi-moon-fill');
+        $('#themeBtn').attr('title', 'Switch to dark mode');
+    }
+
+    // Re-apply map styles if the map is already loaded
+    if (updateMap && appState.map) {
+        appState.map.setOptions({ styles: getMapStyles() });
+    }
+}
+
+function toggleTheme() {
+    var current = document.documentElement.getAttribute('data-theme');
+    var next    = current === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('ev-theme', next);
+    applyTheme(next, true);
+}
+
+/* Map styles — returns dark or light depending on current theme */
 function getMapStyles() {
+    return document.documentElement.getAttribute('data-theme') === 'light'
+        ? getLightMapStyles()
+        : getDarkMapStyles();
+}
+
+function getDarkMapStyles() {
     return [
         { elementType: 'geometry',             stylers: [{ color: '#1a2535' }] },
         { elementType: 'labels.text.fill',     stylers: [{ color: '#94a3b8' }] },
@@ -79,6 +132,34 @@ function getMapStyles() {
     ];
 }
 
+function getLightMapStyles() {
+    return [
+        { elementType: 'geometry',             stylers: [{ color: '#f5f5f5' }] },
+        { elementType: 'labels.text.fill',     stylers: [{ color: '#616161' }] },
+        { elementType: 'labels.text.stroke',   stylers: [{ color: '#f5f5f5' }] },
+        { featureType: 'road',
+          elementType: 'geometry',             stylers: [{ color: '#ffffff' }] },
+        { featureType: 'road',
+          elementType: 'geometry.stroke',      stylers: [{ color: '#e0e0e0' }] },
+        { featureType: 'road.highway',
+          elementType: 'geometry',             stylers: [{ color: '#dadada' }] },
+        { featureType: 'road.highway',
+          elementType: 'geometry.stroke',      stylers: [{ color: '#cccccc' }] },
+        { featureType: 'water',
+          elementType: 'geometry',             stylers: [{ color: '#c9d8e8' }] },
+        { featureType: 'water',
+          elementType: 'labels.text.fill',     stylers: [{ color: '#9e9e9e' }] },
+        { featureType: 'poi',                  stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit',              stylers: [{ visibility: 'off' }] },
+        { featureType: 'administrative',
+          elementType: 'geometry',             stylers: [{ color: '#e0e0e0' }] },
+        { featureType: 'administrative.locality',
+          elementType: 'labels.text.fill',     stylers: [{ color: '#757575' }] },
+        { featureType: 'landscape',
+          elementType: 'geometry',             stylers: [{ color: '#f5f5f5' }] }
+    ];
+}
+
 /* Bind all UI events */
 function initEventListeners() {
     $('#searchForm').on('submit', function(e) {
@@ -98,6 +179,9 @@ function initEventListeners() {
         appState.currentFilter = $(this).data('filter');
         renderStationsList(appState.stations);
     });
+
+    // Theme toggle
+    $('#themeBtn').on('click', toggleTheme);
 
     // Mobile: toggle sidebar
     $('#togglePanel').on('click', function() {
@@ -679,6 +763,7 @@ function showToast(message, type) {
 
 /* Runs on page load — sets up error handling before Maps loads */
 $(document).ready(function() {
+    initTheme();
     // Called by Maps SDK if the API key fails auth
     window.gm_authFailure = function() {
         document.getElementById('mapOverlay').querySelector('p').textContent =
