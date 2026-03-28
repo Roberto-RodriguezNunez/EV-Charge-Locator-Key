@@ -1,0 +1,11 @@
+# Claves de API — nunca subir al repositorio
+js/config.js
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/
+.idea/
+*.sublime-workspace
