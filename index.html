@@ -1,32 +1,29 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EV Charge Locator — Encuentra tu punto de carga</title>
+    <title>EV Charge Locator — Find your charging point</title>
 
-    <!-- Bootstrap 5 CSS vía CDN -->
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- Bootstrap Icons vía CDN -->
+    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
-    <!-- Font Awesome vía CDN -->
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
 
-    <!-- Estilos personalizados -->
+    <!-- Custom styles -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
-    <!-- ============================================================
-         NAVBAR SUPERIOR
-         Contiene logo, campo de búsqueda y botón de geolocalización
-    ============================================================ -->
+    <!-- NAVBAR -->
     <nav class="navbar navbar-dark navbar-custom fixed-top">
         <div class="container-fluid px-3">
 
-            <!-- Logo y nombre de la aplicación -->
+            <!-- Logo -->
             <a class="navbar-brand d-flex align-items-center gap-2" href="#">
                 <div class="brand-icon">
                     <i class="fa-solid fa-bolt"></i>
@@ -34,7 +31,7 @@
                 <span class="brand-text">EV Charge <span class="brand-accent">Locator</span></span>
             </a>
 
-            <!-- Formulario de búsqueda manual -->
+            <!-- Search form -->
             <form id="searchForm" class="d-flex align-items-center gap-2 search-form" onsubmit="return false;">
                 <div class="input-group search-input-group">
                     <span class="input-group-text bg-transparent border-end-0">
@@ -44,88 +41,84 @@
                         type="text"
                         id="searchInput"
                         class="form-control border-start-0"
-                        placeholder="Ciudad o dirección..."
+                        placeholder="City or address..."
                         autocomplete="off"
                     >
                     <button class="btn btn-search" type="submit" id="searchBtn">
-                        <span class="btn-text">Buscar</span>
+                        <span class="btn-text">Search</span>
                         <i class="bi bi-arrow-right-short fs-5"></i>
                     </button>
                 </div>
 
-                <!-- Botón de geolocalización -->
-                <button type="button" class="btn btn-geo" id="geoBtn" title="Usar mi ubicación">
+                <!-- Geolocation button -->
+                <button type="button" class="btn btn-geo" id="geoBtn" title="Use my location">
                     <i class="bi bi-geo-alt-fill"></i>
                 </button>
             </form>
         </div>
     </nav>
 
-    <!-- ============================================================
-         CONTENIDO PRINCIPAL
-         Layout de dos columnas: panel lateral + mapa
-    ============================================================ -->
+    <!-- MAIN LAYOUT: sidebar + map -->
     <main class="main-container">
 
-        <!-- ---- PANEL LATERAL DE RESULTADOS ---- -->
+        <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
 
-            <!-- Cabecera del panel -->
+            <!-- Sidebar header -->
             <div class="sidebar-header">
                 <div class="d-flex align-items-center justify-content-between">
                     <h6 class="sidebar-title mb-0">
                         <i class="bi bi-ev-station-fill me-2 text-accent"></i>
-                        Estaciones encontradas
+                        Stations found
                     </h6>
-                    <!-- Contador de resultados -->
                     <span class="badge badge-count" id="stationsCount">0</span>
                 </div>
 
-                <!-- Filtro rápido por estado -->
+                <!-- Quick filter pills -->
                 <div class="filter-pills mt-2" id="filterPills">
-                    <button class="pill active" data-filter="all">Todas</button>
-                    <button class="pill" data-filter="operational">Operativas</button>
-                    <button class="pill" data-filter="unknown">Desconocido</button>
+                    <button class="pill active" data-filter="all">All</button>
+                    <button class="pill" data-filter="operational">Operational</button>
+                    <button class="pill" data-filter="unknown">Unknown</button>
                 </div>
             </div>
 
-            <!-- Indicador de carga (spinner) -->
+            <!-- Loading spinner -->
             <div id="loadingSpinner" class="loading-container d-none">
                 <div class="spinner-wrapper">
                     <div class="ev-spinner">
                         <div class="spinner-ring"></div>
                         <i class="fa-solid fa-bolt spinner-icon"></i>
                     </div>
-                    <p class="loading-text mt-3">Buscando estaciones...</p>
+                    <p class="loading-text mt-3">Searching stations...</p>
                 </div>
             </div>
 
-            <!-- Mensaje de estado inicial / errores / sin resultados -->
+            <!-- Status message (default / error / no results) -->
             <div id="statusMessage" class="status-message">
                 <div class="status-icon">
                     <i class="fa-solid fa-location-crosshairs"></i>
                 </div>
-                <h6>Activa tu ubicación</h6>
-                <p>Permite el acceso a tu ubicación o busca una ciudad para encontrar estaciones de carga cercanas.</p>
+                <h6>Enable your location</h6>
+                <p>Allow location access or search for a city to find nearby charging stations.</p>
             </div>
 
-            <!-- Lista de estaciones -->
+            <!-- Station list -->
             <div id="stationsList" class="stations-list d-none"></div>
 
         </aside>
 
-        <!-- ---- CONTENEDOR DEL MAPA ---- -->
+        <!-- MAP SECTION -->
         <section class="map-section">
             <div id="map"></div>
 
-            <!-- Overlay inicial del mapa (antes de cargar) -->
+            <!-- Overlay shown while map loads -->
             <div id="mapOverlay" class="map-overlay">
                 <div class="overlay-content">
                     <div class="overlay-icon">
                         <i class="fa-solid fa-bolt"></i>
                     </div>
                     <h4>EV Charge Locator</h4>
-                    <p>Cargando el mapa...</p>
+                    <p>Loading map...</p>
                     <div class="progress mt-3" style="width: 200px;">
                         <div class="progress-bar progress-bar-striped progress-bar-animated bg-accent"
                              role="progressbar" style="width: 100%"></div>
@@ -133,82 +126,69 @@
                 </div>
             </div>
 
-            <!-- Botón flotante para colapsar/expandir panel en móvil -->
-            <button class="btn btn-fab" id="togglePanel" title="Mostrar/ocultar panel">
+            <!-- FAB button (mobile only) to toggle the sidebar -->
+            <button class="btn btn-fab" id="togglePanel" title="Show/hide panel">
                 <i class="bi bi-list-ul"></i>
                 <span class="fab-badge d-none" id="fabBadge">0</span>
             </button>
         </section>
     </main>
 
-    <!-- ============================================================
-         TOAST / NOTIFICACIONES
-    ============================================================ -->
+    <!-- TOAST NOTIFICATIONS -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
         <div id="notificationToast" class="toast align-items-center border-0" role="alert" aria-live="assertive">
             <div class="d-flex">
-                <div class="toast-body" id="toastBody">
-                    <!-- Mensaje dinámico -->
-                </div>
+                <div class="toast-body" id="toastBody"></div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
             </div>
         </div>
     </div>
 
-    <!-- ============================================================
-         MODAL DE DETALLE DE ESTACIÓN
-    ============================================================ -->
+    <!-- STATION DETAIL MODAL -->
     <div class="modal fade" id="stationModal" tabindex="-1" aria-labelledby="stationModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content modal-custom">
                 <div class="modal-header border-0">
                     <div>
-                        <h5 class="modal-title" id="stationModalLabel">Nombre estación</h5>
+                        <h5 class="modal-title" id="stationModalLabel">Station name</h5>
                         <small class="text-muted" id="modalAddress"></small>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="modalBody">
-                    <!-- Contenido dinámico -->
-                </div>
+                <div class="modal-body" id="modalBody"></div>
                 <div class="modal-footer border-0">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="button" class="btn btn-accent" id="modalCenterBtn">
-                        <i class="bi bi-geo-alt me-1"></i> Centrar en mapa
+                        <i class="bi bi-geo-alt me-1"></i> Center on map
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ============================================================
-         SCRIPTS (orden importante)
-    ============================================================ -->
+    <!-- SCRIPTS -->
 
-    <!-- jQuery vía CDN (requerido antes que app.js) -->
+    <!-- jQuery (must load before app.js) -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-    <!-- Bootstrap 5 JS Bundle vía CDN (incluye Popper) -->
+    <!-- Bootstrap 5 bundle (includes Popper) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Lógica principal de la aplicación -->
-    <!-- config.js define GOOGLE_MAPS_API_KEY y OCM_API_KEY (está en .gitignore) -->
+    <!-- API keys — defined in config.js (excluded from git) -->
     <script src="js/config.js"></script>
 
-    <!-- Lógica principal de la aplicación -->
+    <!-- Main app logic -->
     <script src="js/app.js"></script>
 
-    <!-- Google Maps JavaScript API — la key se inyecta dinámicamente desde config.js -->
+    <!-- Inject Google Maps dynamically using the key from config.js -->
     <script>
         (function() {
-            // Verificar que config.js se cargó correctamente
-            if (typeof GOOGLE_MAPS_API_KEY === 'undefined' || GOOGLE_MAPS_API_KEY === 'TU_API_KEY_DE_GOOGLE_MAPS') {
-                console.error('[EV Charge Locator] Falta config.js o la API key de Google Maps no está configurada.');
+            if (typeof GOOGLE_MAPS_API_KEY === 'undefined' || GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+                console.error('[EV Charge Locator] config.js missing or API key not set.');
                 document.getElementById('mapOverlay').querySelector('p').textContent =
-                    'Error: copia js/config.example.js como js/config.js y añade tus claves.';
+                    'Error: copy js/config.example.js as js/config.js and fill in your keys.';
                 return;
             }
-            // Inyectar el script de Google Maps con la key real
             var script = document.createElement('script');
             script.src = 'https://maps.googleapis.com/maps/api/js?key='
                          + GOOGLE_MAPS_API_KEY
