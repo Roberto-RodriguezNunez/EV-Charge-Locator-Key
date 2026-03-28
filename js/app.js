@@ -44,6 +44,11 @@ function initMap() {
     appState.infoWindow = new google.maps.InfoWindow();
     appState.geocoder   = new google.maps.Geocoder();
 
+    // Close InfoWindow when clicking on an empty part of the map
+    appState.map.addListener('click', function() {
+        appState.infoWindow.close();
+    });
+
     initEventListeners();
     attemptGeolocation();
 }
