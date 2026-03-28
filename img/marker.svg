@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="36" height="44">
+  <!-- Pin exterior verde eléctrico -->
+  <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z"
+        fill="#00d084" opacity="0.95"/>
+  <!-- Círculo interior semitransparente -->
+  <circle cx="18" cy="17" r="10" fill="rgba(255,255,255,0.15)"/>
+  <!-- Icono de rayo (bolt) en blanco -->
+  <path d="M20.5 8.5l-5 9h4.5l-4.5 9 8-11h-4.5z"
+        fill="#ffffff" opacity="0.95"/>
+</svg>
