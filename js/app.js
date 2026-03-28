@@ -44,9 +44,20 @@ function initMap() {
     appState.infoWindow = new google.maps.InfoWindow();
     appState.geocoder   = new google.maps.Geocoder();
 
-    // Close InfoWindow when clicking on an empty part of the map
+    // Close InfoWindow on desktop click
     appState.map.addListener('click', function() {
         appState.infoWindow.close();
+    });
+    // Close InfoWindow when user starts dragging the map
+    appState.map.addListener('dragstart', function() {
+        appState.infoWindow.close();
+    });
+    // Close InfoWindow on mobile tap (pointerdown fires before Maps API 'click')
+    // but not when tapping inside the InfoWindow itself (.gm-style-iw-c)
+    document.getElementById('map').addEventListener('pointerdown', function(e) {
+        if (!e.target.closest('.gm-style-iw-c') && !e.target.closest('.gm-style-iw')) {
+            appState.infoWindow.close();
+        }
     });
 
     initEventListeners();
