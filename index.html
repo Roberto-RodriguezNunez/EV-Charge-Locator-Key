@@ -78,6 +78,9 @@
         <!-- SIDEBAR -->
         <aside class="sidebar" id="sidebar">
 
+            <!-- Drag handle (mobile only) -->
+            <div class="sidebar-drag-handle" id="sidebarHandle"></div>
+
             <!-- Sidebar header -->
             <div class="sidebar-header">
                 <div class="d-flex align-items-center justify-content-between">
@@ -85,7 +88,12 @@
                         <i class="bi bi-ev-station-fill me-2 text-accent"></i>
                         Stations found
                     </h6>
-                    <span class="badge badge-count" id="stationsCount">0</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge badge-count" id="stationsCount">0</span>
+                        <button class="btn btn-sidebar-close" id="closePanelBtn" title="Close panel">
+                            <i class="bi bi-chevron-down"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Quick filter pills -->
