@@ -621,9 +621,6 @@ html, body {
     box-shadow: 0 4px 16px rgba(0, 208, 132, 0.4);
     z-index: 50;
     transition: var(--transition);
-    /* keep fully inside safe area on notched phones */
-    margin-bottom: env(safe-area-inset-bottom, 0px);
-    margin-right: env(safe-area-inset-right, 0px);
 }
 
 .btn-fab:hover {
@@ -1017,9 +1014,14 @@ html, body {
         display: flex;
     }
 
-    /* Show FAB */
+    /* FAB: fixed so overflow:hidden on map-section can't clip it,
+       bottom:90px clears Android Chrome's nav bar (~48-56px) */
     .btn-fab {
         display: flex;
+        position: fixed;
+        bottom: 90px;
+        right: 20px;
+        z-index: 200;
     }
 
     /* Navbar: prevent search bar from overflowing */
