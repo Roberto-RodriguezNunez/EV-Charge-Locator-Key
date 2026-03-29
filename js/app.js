@@ -1289,8 +1289,8 @@ function stationHasConnector(station, type) {
         switch (type) {
             case 'ccs':     return title.includes('ccs') || title.includes('combo');
             case 'chademo': return title.includes('chademo');
-            case 'type2':   return title.includes('type 2') || title.includes('type2');
-            case 'type1':   return title.includes('type 1') || title.includes('j1772');
+            case 'type2':   return (title.includes('type 2') || title.includes('type2')) && !title.includes('ccs') && !title.includes('combo');
+            case 'type1':   return (title.includes('type 1') || title.includes('j1772')) && !title.includes('ccs') && !title.includes('combo');
             default:        return false;
         }
     });
