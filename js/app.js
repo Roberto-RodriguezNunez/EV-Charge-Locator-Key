@@ -6,7 +6,7 @@
 /* Search settings */
 const CONFIG = {
     searchRadiusKm: 10,      // km radius for the OCM query (updated by slider)
-    maxResults:     50,      // max stations returned
+    maxResults:     500,     // max stations returned
     defaultLat:     40.4168, // fallback center (Madrid)
     defaultLng:     -3.7038,
     defaultZoom:    13,
