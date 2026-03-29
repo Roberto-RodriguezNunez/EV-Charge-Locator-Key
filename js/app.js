@@ -617,8 +617,10 @@ function fetchChargingStations(lat, lng) {
             appState.stations = data;
             createMarkers(data);
             renderStationsList(data);
-            updateStationsCount(data.length);
+            syncMarkersToFilter();
+            updateStationsCount(filterStations(data, appState.currentFilter).length);
             updateZoneStats(data);
+            updateFilteredStats();
 
             showToast(
                 '<i class="bi bi-check-circle-fill me-1"></i> Found <strong>' +
