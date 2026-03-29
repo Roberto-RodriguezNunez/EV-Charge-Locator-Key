@@ -1282,15 +1282,32 @@ function applyAdvancedFilters(stations) {
     });
 }
 
+// OCM connector type IDs — primary matching method (immune to name changes)
+const CONNECTOR_IDS = {
+    ccs:     new Set([32, 33]),              // CCS Combo 2 (EU), CCS Combo 1 (US/JP)
+    chademo: new Set([2]),                   // CHAdeMO
+    type2:   new Set([25, 1036]),            // Type 2 Socket (Mennekes), Type 2 Tethered
+    type1:   new Set([1]),                   // Type 1 / J1772
+    tesla:   new Set([27, 30, 1032, 1033]),  // Tesla Roadster, Model S/X, V3, NACS
+    schuko:  new Set([28])                   // Schuko / CEE 7/4
+};
+
 function stationHasConnector(station, type) {
     if (!station.Connections) return false;
+    const ids = CONNECTOR_IDS[type];
     return station.Connections.some(function(c) {
-        const title = (c.ConnectionType ? c.ConnectionType.Title : '').toLowerCase();
+        if (!c.ConnectionType) return false;
+        // Primary: match by numeric ID
+        if (ids && ids.has(c.ConnectionType.ID)) return true;
+        // Fallback: string match for unknown/future IDs
+        const title = c.ConnectionType.Title.toLowerCase();
         switch (type) {
             case 'ccs':     return title.includes('ccs') || title.includes('combo');
             case 'chademo': return title.includes('chademo');
-            case 'type2':   return (title.includes('type 2') || title.includes('type2')) && !title.includes('ccs') && !title.includes('combo');
+            case 'type2':   return (title.includes('type 2') || title.includes('mennekes')) && !title.includes('ccs') && !title.includes('combo');
             case 'type1':   return (title.includes('type 1') || title.includes('j1772')) && !title.includes('ccs') && !title.includes('combo');
+            case 'tesla':   return title.includes('tesla') || title.includes('nacs');
+            case 'schuko':  return title.includes('schuko') || title.includes('cee 7');
             default:        return false;
         }
     });
