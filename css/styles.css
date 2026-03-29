@@ -560,6 +560,28 @@ html, body {
     margin-top: 3px;
 }
 
+.zone-stats-filtered {
+    background: rgba(245, 158, 11, 0.06);
+    border-top: none;
+}
+
+.zone-stats-filtered .stat-value {
+    color: var(--color-warning);
+}
+
+.stat-item-label {
+    flex: 0 0 auto;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--color-dark-4);
+    color: var(--color-warning);
+    font-size: 0.7rem;
+    gap: 2px;
+}
+
 /* ============================================================
    VIEW TOGGLE (desktop)
 ============================================================ */
