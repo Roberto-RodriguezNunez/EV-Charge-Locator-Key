@@ -5,19 +5,19 @@
  * Static SPA (no framework, no build step).
  * Dependencies: jQuery 3.7, Bootstrap 5, Google Maps JS API, Open Charge Map API.
  *
- * ÍNDICE
+ * TABLE OF CONTENTS
  * ──────────────────────────────────────────────────────────────
- *  1.  CONFIG & STATE       ln ~7   Configuración global y estado compartido
+ *  1.  CONFIG & STATE       ln ~7   Global configuration and shared state
  *  2.  INIT                 ln ~47  Google Maps callback, app bootstrap
  *  3.  THEME                ln ~85  Dark/light mode, map styles
  *  4.  EVENT LISTENERS      ln ~196 Registration of all DOM events
  *  5.  FILTERS & SYNC       ln ~379 Re-render and marker sync after filter changes
- *  6.  VIEW MODES           ln ~417 Modos: mapa+lista / solo mapa / solo lista
+ *  6.  VIEW MODES           ln ~417 Modes: map+list / map only / list only
  *  7.  GEOLOCATION          ln ~444 Browser GPS, user position marker
  *  8.  SEARCH               ln ~525 Text geocoding via Google Maps
  *  9.  SEARCH HISTORY       ln ~559 Search history in localStorage
  * 10.  AUTOCOMPLETE         ln ~607 Places suggestions while typing
- * 11.  OCM API              ln ~650 Petición AJAX a Open Charge Map
+ * 11.  OCM API              ln ~650 AJAX request to Open Charge Map
  * 12.  MARKERS & CLUSTERING ln ~726 Pins SVG, MarkerClusterer, limpieza
  * 13.  INFO WINDOW          ln ~817 Popup shown when clicking a marker
  * 14.  STATION LIST         ln ~878 Sidebar cards, detail modal
