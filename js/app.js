@@ -17,6 +17,7 @@ const CONFIG = {
 const LS_THEME     = 'ev-theme';
 const LS_FAVORITES = 'ev-favorites';
 const LS_HISTORY   = 'ev-history';
+const LS_RADIUS    = 'ev-radius';
 const MAX_HISTORY  = 8;
 
 /* App state */
@@ -253,11 +254,20 @@ function initEventListeners() {
         $('#advFilterChevron').css('transform', open ? 'rotate(180deg)' : '');
     });
 
-    // Radius slider
+    // Radius slider — persist value and re-fetch if stations already loaded
+    var _radiusTimer = null;
     $('#radiusSlider').on('input', function() {
         const val = parseInt($(this).val());
         CONFIG.searchRadiusKm = val;
         $('#radiusValue').text(val);
+        localStorage.setItem(LS_RADIUS, val);
+        if (appState.userMarker) {
+            clearTimeout(_radiusTimer);
+            _radiusTimer = setTimeout(function() {
+                const pos = appState.userMarker.getPosition();
+                fetchChargingStations(pos.lat(), pos.lng());
+            }, 600);
+        }
     });
 
     // Connector checkboxes
@@ -1515,6 +1525,12 @@ $(document).ready(function() {
     initTheme();
     loadFavorites();
     loadSearchHistory();
+    const savedRadius = parseInt(localStorage.getItem(LS_RADIUS));
+    if (savedRadius && savedRadius >= 1 && savedRadius <= 50) {
+        CONFIG.searchRadiusKm = savedRadius;
+        $('#radiusSlider').val(savedRadius);
+        $('#radiusValue').text(savedRadius);
+    }
 
     window.gm_authFailure = function() {
         document.getElementById('mapOverlay').querySelector('p').textContent =
