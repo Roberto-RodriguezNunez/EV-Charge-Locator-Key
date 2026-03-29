@@ -6,7 +6,7 @@
 /* Search settings */
 const CONFIG = {
     searchRadiusKm: 10,      // km radius for the OCM query (updated by slider)
-    maxResults:     500,     // max stations returned
+    maxResults:     500,     // base value — overridden dynamically by getMaxResults()
     defaultLat:     40.4168, // fallback center (Madrid)
     defaultLng:     -3.7038,
     defaultZoom:    13,
@@ -637,6 +637,16 @@ function hideSearchHistory() {
 /* ============================================================
    OPEN CHARGE MAP API
 ============================================================ */
+
+// Scale result limit with radius — small searches stay fast, large ones are complete
+function getMaxResults() {
+    const r = CONFIG.searchRadiusKm;
+    if (r <= 10) return 500;
+    if (r <= 20) return 1000;
+    if (r <= 35) return 2000;
+    return 5000;
+}
+
 function fetchChargingStations(lat, lng) {
     showLoadingSpinner();
     clearMarkers();
@@ -651,7 +661,7 @@ function fetchChargingStations(lat, lng) {
             longitude:    lng,
             distance:     CONFIG.searchRadiusKm,
             distanceunit: 'KM',
-            maxresults:   CONFIG.maxResults
+            maxresults:   getMaxResults()
         },
         success: function(data) {
             hideLoadingSpinner();
