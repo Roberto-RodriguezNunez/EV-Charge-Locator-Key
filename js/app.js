@@ -213,6 +213,7 @@ function initEventListeners() {
         $(this).addClass('active');
         appState.currentFilter = $(this).data('filter');
         renderStationsList(appState.stations);
+        syncMarkersToFilter();
     });
 
     // Theme toggle
@@ -357,6 +358,33 @@ function applyAndRender() {
     updateAdvancedFilterIndicator();
     if (appState.stations.length > 0 || appState.currentFilter === 'favorites') {
         renderStationsList(appState.stations);
+        syncMarkersToFilter();
+    }
+}
+
+/* Show only markers whose station passes the current filters */
+function syncMarkersToFilter() {
+    if (appState.markers.length === 0) return;
+
+    const filtered   = filterStations(appState.stations, appState.currentFilter);
+    const visibleIds = new Set(filtered.map(s => s.ID));
+
+    const visible = appState.markers.filter(m => visibleIds.has(m.stationId));
+    const hidden  = appState.markers.filter(m => !visibleIds.has(m.stationId));
+
+    // Explicitly hide non-matching markers (handles markers placed directly
+    // via setMap, which clusterer.clearMarkers() won't catch)
+    hidden.forEach(m => m.setMap(null));
+
+    if (appState.clusterer) {
+        appState.clusterer.clearMarkers();
+        if (visible.length > 0) appState.clusterer.addMarkers(visible);
+    } else {
+        visible.forEach(m => m.setMap(appState.map));
+    }
+
+    if (appState.activeCardId && !visibleIds.has(appState.activeCardId)) {
+        appState.infoWindow.close();
     }
 }
 
