@@ -221,6 +221,26 @@
                 </div>
             </div>
 
+            <!-- Filtered statistics (shown when a filter is active) -->
+            <div id="filteredStats" class="zone-stats zone-stats-filtered d-none">
+                <div class="stat-item stat-item-label">
+                    <i class="bi bi-funnel-fill"></i>
+                    <span class="stat-label">Filtered</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="fstatTotal">0</span>
+                    <span class="stat-label">Total</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="fstatOperational">0</span>
+                    <span class="stat-label">Online</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="fstatAvgPower">&mdash;</span>
+                    <span class="stat-label">Avg kW</span>
+                </div>
+            </div>
+
             <!-- Loading spinner -->
             <div id="loadingSpinner" class="loading-container d-none">
                 <div class="spinner-wrapper">

@@ -214,6 +214,7 @@ function initEventListeners() {
         appState.currentFilter = $(this).data('filter');
         renderStationsList(appState.stations);
         syncMarkersToFilter();
+        updateFilteredStats();
     });
 
     // Theme toggle
@@ -359,6 +360,7 @@ function applyAndRender() {
     if (appState.stations.length > 0 || appState.currentFilter === 'favorites') {
         renderStationsList(appState.stations);
         syncMarkersToFilter();
+        updateFilteredStats();
     }
 }
 
@@ -1199,6 +1201,38 @@ function updateZoneStats(stations) {
     $('#statConnTypes').text(connTypes.size);
     $('#statAvgPower').text(avgPower ? avgPower : '—');
     $('#zoneStats').removeClass('d-none');
+}
+
+function updateFilteredStats() {
+    const { connectors, speeds, costs } = appState.advFilters;
+    const hasAdvanced = connectors.length > 0 || speeds.length > 0 || costs.length > 0;
+    const hasFilter   = appState.currentFilter !== 'all' || hasAdvanced;
+
+    if (!hasFilter || appState.stations.length === 0) {
+        $('#filteredStats').addClass('d-none');
+        return;
+    }
+
+    const filtered    = filterStations(appState.stations, appState.currentFilter);
+    const operational = filtered.filter(s => s.StatusType && s.StatusType.IsOperational === true).length;
+    const powers      = [];
+
+    filtered.forEach(function(s) {
+        if (s.Connections) {
+            s.Connections.forEach(function(c) {
+                if (c.PowerKW && c.PowerKW > 0) powers.push(c.PowerKW);
+            });
+        }
+    });
+
+    const avgPower = powers.length > 0
+        ? Math.round(powers.reduce((a, b) => a + b, 0) / powers.length)
+        : null;
+
+    $('#fstatTotal').text(filtered.length);
+    $('#fstatOperational').text(operational);
+    $('#fstatAvgPower').text(avgPower ? avgPower : '—');
+    $('#filteredStats').removeClass('d-none');
 }
 
 /* ============================================================
