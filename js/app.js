@@ -1,7 +1,37 @@
 'use strict';
 
-// Keys are loaded from config.js (excluded from git).
-// Copy config.example.js as config.js to get started.
+/**
+ * EV CHARGE LOCATOR — app.js
+ * Aplicación SPA estática (sin framework, sin build step).
+ * Dependencias: jQuery 3.7, Bootstrap 5, Google Maps JS API, Open Charge Map API.
+ *
+ * ÍNDICE
+ * ──────────────────────────────────────────────────────────────
+ *  1.  CONFIG & STATE       ln ~7   Configuración global y estado compartido
+ *  2.  INIT                 ln ~47  Callback de Google Maps, arranque de la app
+ *  3.  THEME                ln ~85  Modo oscuro/claro, estilos del mapa
+ *  4.  EVENT LISTENERS      ln ~196 Registro de todos los eventos DOM
+ *  5.  FILTERS & SYNC       ln ~379 Re-renderizado y sincronización de marcadores
+ *  6.  VIEW MODES           ln ~417 Modos: mapa+lista / solo mapa / solo lista
+ *  7.  GEOLOCATION          ln ~444 GPS del navegador, marcador de posición
+ *  8.  SEARCH               ln ~525 Geocodificación de texto con Google Maps
+ *  9.  SEARCH HISTORY       ln ~559 Historial de búsquedas (localStorage)
+ * 10.  AUTOCOMPLETE         ln ~607 Sugerencias de Places mientras se escribe
+ * 11.  OCM API              ln ~650 Petición AJAX a Open Charge Map
+ * 12.  MARKERS & CLUSTERING ln ~726 Pins SVG, MarkerClusterer, limpieza
+ * 13.  INFO WINDOW          ln ~817 Popup al hacer clic en un marcador
+ * 14.  STATION LIST         ln ~878 Cards del sidebar, modal de detalle
+ * 15.  FAVORITES            ln ~1112 Guardar/cargar estaciones en localStorage
+ * 16.  COMPARE              ln ~1173 Comparativa de hasta 3 estaciones
+ * 17.  ZONE STATISTICS      ln ~1251 Barra de estadísticas general y filtrada
+ * 18.  ADVANCED FILTERS     ln ~1313 Lógica de filtrado por conector/velocidad/coste
+ * 19.  STATUS HELPERS       ln ~1410 Texto, clase CSS y color según estado OCM
+ * 20.  UI HELPERS           ln ~1475 Spinner, toasts, badges, FAB
+ * ──────────────────────────────────────────────────────────────
+ */
+
+// Las claves de API se cargan desde config.js (excluido del repositorio).
+// Copiar config.example.js como config.js y rellenar las claves para ejecutar.
 
 /* Search settings */
 const CONFIG = {
@@ -43,7 +73,10 @@ const appState = {
     viewMode:      'both'     // 'both' | 'map' | 'list'
 };
 
-// Called by the Google Maps SDK once the script loads
+/**
+ * initMap — callback invocado por el SDK de Google Maps al terminar de cargarse.
+ * Crea el mapa, el geocoder, el servicio de autocompletado y arranca la app.
+ */
 function initMap() {
     $('#mapOverlay').addClass('hidden');
 
@@ -86,6 +119,7 @@ function initMap() {
    THEME
 ============================================================ */
 
+/** Lee el tema guardado en localStorage; si no existe, usa la preferencia del sistema. */
 function initTheme() {
     var saved  = localStorage.getItem(LS_THEME);
     var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -98,6 +132,7 @@ function initTheme() {
     });
 }
 
+/** Aplica 'dark' o 'light' al atributo data-theme del HTML y actualiza el icono del botón. */
 function applyTheme(theme, updateMap) {
     document.documentElement.classList.add('theme-switching');
     document.documentElement.setAttribute('data-theme', theme);
@@ -118,6 +153,7 @@ function applyTheme(theme, updateMap) {
     }
 }
 
+/** Alterna entre dark y light y persiste la elección en localStorage. */
 function toggleTheme() {
     var current = document.documentElement.getAttribute('data-theme');
     var next    = current === 'dark' ? 'light' : 'dark';
@@ -132,6 +168,7 @@ function getMapStyles() {
         : getDarkMapStyles();
 }
 
+/** Devuelve el array de estilos JSON para el mapa en tema oscuro (paleta azul marino). */
 function getDarkMapStyles() {
     return [
         { elementType: 'geometry',             stylers: [{ color: '#1a2535' }] },
@@ -162,6 +199,7 @@ function getDarkMapStyles() {
     ];
 }
 
+/** Devuelve el array de estilos JSON para el mapa en tema claro (grises y blancos). */
 function getLightMapStyles() {
     return [
         { elementType: 'geometry',             stylers: [{ color: '#f5f5f5' }] },
@@ -193,6 +231,11 @@ function getLightMapStyles() {
 /* ============================================================
    EVENT LISTENERS
 ============================================================ */
+/**
+ * initEventListeners — registra todos los eventos de la interfaz.
+ * Organizado en bloques: búsqueda, geolocalización, filtros, tema,
+ * sidebar mobile, modal, comparador, historial y autocompletado.
+ */
 function initEventListeners() {
     // Search form
     $('#searchForm').on('submit', function(e) {
@@ -375,7 +418,7 @@ function initEventListeners() {
     });
 }
 
-/* Re-render after filter changes */
+/** Punto de entrada único para cualquier cambio de filtro: actualiza lista, marcadores y stats. */
 function applyAndRender() {
     updateAdvancedFilterIndicator();
     if (appState.stations.length > 0 || appState.currentFilter === 'favorites') {
@@ -414,6 +457,7 @@ function syncMarkersToFilter() {
 /* ============================================================
    VIEW MODES (desktop)
 ============================================================ */
+/** Cambia la distribución del layout en desktop: 'both' | 'map' | 'list'. */
 function setViewMode(mode) {
     appState.viewMode = mode;
     $('.view-btn').removeClass('active');
@@ -441,6 +485,7 @@ function setViewMode(mode) {
 /* ============================================================
    GEOLOCATION
 ============================================================ */
+/** Solicita la posición GPS al navegador y lanza fetchChargingStations si tiene éxito. */
 function attemptGeolocation() {
     if (!navigator.geolocation) {
         showStatusMessage('error', 'fa-solid fa-location-slash',
@@ -494,7 +539,7 @@ function attemptGeolocation() {
     );
 }
 
-/* Blue dot for the user's own position */
+/** Dibuja el punto azul (posición del usuario) en el mapa; reemplaza el anterior si existe. */
 function addUserLocationMarker(lat, lng) {
     const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
@@ -522,6 +567,7 @@ function addUserLocationMarker(lat, lng) {
 /* ============================================================
    SEARCH
 ============================================================ */
+/** Geocodifica la dirección con Google Maps y lanza fetchChargingStations con las coordenadas. */
 function searchByAddress(query) {
     showLoadingSpinner();
 
@@ -556,6 +602,7 @@ function searchByAddress(query) {
 /* ============================================================
    SEARCH HISTORY
 ============================================================ */
+/** Carga el historial desde localStorage a appState.searchHistory. */
 function loadSearchHistory() {
     try {
         appState.searchHistory = JSON.parse(localStorage.getItem(LS_HISTORY)) || [];
@@ -564,6 +611,7 @@ function loadSearchHistory() {
     }
 }
 
+/** Añade la búsqueda al historial (sin duplicados, máx MAX_HISTORY entradas) y lo persiste. */
 function saveSearchHistory(query) {
     loadSearchHistory();
     appState.searchHistory = appState.searchHistory.filter(
@@ -574,6 +622,7 @@ function saveSearchHistory(query) {
     localStorage.setItem(LS_HISTORY, JSON.stringify(appState.searchHistory));
 }
 
+/** Renderiza el historial de búsquedas en el dropdown del input. */
 function showSearchHistory() {
     loadSearchHistory();
     const $dropdown = $('#searchHistoryDropdown');
@@ -604,8 +653,9 @@ function showSearchHistory() {
 /* ============================================================
    AUTOCOMPLETE SUGGESTIONS
 ============================================================ */
-var _autocompleteTimer = null;
+var _autocompleteTimer = null; // Timer del debounce para no disparar una petición por tecla
 
+/** Consulta Places AutocompleteService con debounce de 200 ms y muestra hasta 5 sugerencias. */
 function fetchAutocompleteSuggestions(query) {
     if (!appState.autocompleteService) return;
     clearTimeout(_autocompleteTimer);
@@ -623,6 +673,7 @@ function fetchAutocompleteSuggestions(query) {
     }, 200);
 }
 
+/** Renderiza las predicciones de Places en el mismo dropdown que el historial. */
 function showAutocompleteSuggestions(predictions) {
     const $dropdown = $('#searchHistoryDropdown');
     let html = '';
@@ -648,7 +699,11 @@ function hideSearchHistory() {
    OPEN CHARGE MAP API
 ============================================================ */
 
-// Scale result limit with radius — small searches stay fast, large ones are complete
+/**
+ * getMaxResults — escala el límite de resultados según el radio activo.
+ * Evita que búsquedas pequeñas hagan peticiones innecesariamente grandes
+ * y que búsquedas amplias queden truncadas por el límite por defecto.
+ */
 function getMaxResults() {
     const r = CONFIG.searchRadiusKm;
     if (r <= 10) return 500;
@@ -657,6 +712,11 @@ function getMaxResults() {
     return 5000;
 }
 
+/**
+ * fetchChargingStations — petición AJAX a la API REST de Open Charge Map.
+ * Parámetros clave: lat/lng, distance (km), maxresults (escalado por getMaxResults).
+ * En éxito: crea marcadores, renderiza lista, aplica filtros activos y actualiza stats.
+ */
 function fetchChargingStations(lat, lng) {
     showLoadingSpinner();
     clearMarkers();
@@ -723,6 +783,10 @@ function fetchChargingStations(lat, lng) {
 /* ============================================================
    MARKERS & CLUSTERING
 ============================================================ */
+/**
+ * createMarkers — crea un Marker SVG por estación y los agrupa con MarkerClusterer.
+ * Los marcadores no se añaden directamente al mapa; el clusterer gestiona su visibilidad.
+ */
 function createMarkers(stations) {
     stations.forEach(function(station, index) {
         const lat   = station.AddressInfo.Latitude;
@@ -764,7 +828,7 @@ function createMarkers(stations) {
     }
 }
 
-/* Custom cluster renderer — green circle with count */
+/** Renderer personalizado para clusters: círculo verde con el número de estaciones agrupadas. */
 function clusterRenderer({ count, position }) {
     const size = count < 10 ? 40 : count < 100 ? 48 : 54;
     const svg  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
@@ -788,7 +852,7 @@ function clusterRenderer({ count, position }) {
     });
 }
 
-/* Build the pin SVG with a dynamic color */
+/** Genera el SVG del pin de mapa (gota + rayo) con el color indicado. Devuelve data URI. */
 function createMarkerSVG(color) {
     const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="36" height="44">
@@ -800,7 +864,7 @@ function createMarkerSVG(color) {
     return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
-/* Remove all station markers and the clusterer */
+/** Elimina todos los marcadores del mapa y destruye el clusterer (llamado antes de cada búsqueda). */
 function clearMarkers() {
     if (appState.clusterer) {
         appState.clusterer.clearMarkers();
@@ -814,6 +878,11 @@ function clearMarkers() {
 /* ============================================================
    INFO WINDOW
 ============================================================ */
+/**
+ * openInfoWindow — construye el HTML del popup y lo muestra sobre el marcador.
+ * Contiene: nombre, dirección, estado, conectores, nº de puntos, coste,
+ * y botones de Detalles, Guardar (★) y Navegar.
+ */
 function openInfoWindow(marker, station) {
     const info       = station.AddressInfo;
     const connectors = getConnectorsList(station);
@@ -875,6 +944,7 @@ function openInfoWindow(marker, station) {
 /* ============================================================
    STATION LIST RENDERING
 ============================================================ */
+/** Filtra las estaciones con el filtro activo y renderiza las cards en el sidebar. */
 function renderStationsList(stations) {
     const $list  = $('#stationsList');
     const toShow = filterStations(stations, appState.currentFilter);
@@ -899,7 +969,10 @@ function renderStationsList(stations) {
     updateStationsCount(toShow.length);
 }
 
-/* Build a single station card element */
+/**
+ * createStationCard — crea el elemento jQuery de una card de estación.
+ * Incluye estado, nombre, dirección, distancia, conectores y botones de favorito/comparar.
+ */
 function createStationCard(station) {
     const info        = station.AddressInfo;
     const statusText  = getStatusText(station.StatusType);
@@ -970,7 +1043,10 @@ function createStationCard(station) {
     return $card;
 }
 
-/* Pan map to a station and open its InfoWindow */
+/**
+ * centerMapOnStation — centra el mapa en la estación al zoom markerZoom (16).
+ * Espera al evento 'idle' para que los clusters se disuelvan antes de abrir el InfoWindow.
+ */
 function centerMapOnStation(lat, lng, stationId) {
     if ($(window).width() <= 767) {
         $('#sidebar').removeClass('open');
@@ -998,7 +1074,7 @@ function centerMapOnStation(lat, lng, stationId) {
     highlightCard(stationId);
 }
 
-/* Mark the matching sidebar card as active and scroll to it */
+/** Resalta la card activa en el sidebar y hace scroll suave hasta ella. */
 function highlightCard(stationId) {
     $('.station-card').removeClass('active');
     const $card = $(`.station-card[data-id="${stationId}"]`);
@@ -1012,7 +1088,10 @@ function highlightCard(stationId) {
     appState.activeCardId = stationId;
 }
 
-/* Open the detail modal for a station */
+/**
+ * openStationModal — abre el modal Bootstrap con el detalle completo de la estación:
+ * estado, puntos, operador, tipo de acceso, coste, conectores y botón de favorito.
+ */
 function openStationModal(stationId) {
     const station = appState.stations.find(s => s.ID === stationId)
                  || appState.favorites.find(s => s.ID === stationId);
@@ -1096,7 +1175,7 @@ function openStationModal(stationId) {
 
 window.openStationModal = openStationModal;
 
-/* Toggle favorite from inside the modal */
+/** Versión del toggle de favorito para el modal: también actualiza el estilo del botón in situ. */
 function toggleFavoriteModal(stationId, btn) {
     toggleFavorite(stationId);
     const nowFav = isFavorite(stationId);
@@ -1109,6 +1188,7 @@ window.toggleFavoriteModal = toggleFavoriteModal;
 /* ============================================================
    FAVORITES
 ============================================================ */
+/** Lee los favoritos desde localStorage a appState.favorites. */
 function loadFavorites() {
     try {
         appState.favorites = JSON.parse(localStorage.getItem(LS_FAVORITES)) || [];
@@ -1117,14 +1197,20 @@ function loadFavorites() {
     }
 }
 
+/** Persiste appState.favorites en localStorage (objeto completo de la estación OCM). */
 function saveFavorites() {
     localStorage.setItem(LS_FAVORITES, JSON.stringify(appState.favorites));
 }
 
+/** Devuelve true si la estación con ese ID está en la lista de favoritos. */
 function isFavorite(stationId) {
     return appState.favorites.some(s => s.ID === stationId);
 }
 
+/**
+ * toggleFavorite — añade o elimina una estación de favoritos.
+ * Actualiza: localStorage, estrella de la card, color del marcador en el mapa.
+ */
 function toggleFavorite(stationId, $card) {
     const station = appState.stations.find(s => s.ID === stationId)
                  || appState.favorites.find(s => s.ID === stationId);
@@ -1170,6 +1256,7 @@ window.toggleFavorite = toggleFavorite;
 /* ============================================================
    COMPARE
 ============================================================ */
+/** Añade o elimina una estación de la lista de comparación (máximo 3). Muestra/oculta la barra. */
 function toggleCompare(stationId) {
     const idx = appState.compareList.indexOf(stationId);
 
@@ -1198,6 +1285,10 @@ function toggleCompare(stationId) {
     }
 }
 
+/**
+ * openCompareModal — construye una tabla HTML comparando las estaciones seleccionadas.
+ * Filas: estado, distancia, puntos, conectores, potencia máx., coste, operador, acceso.
+ */
 function openCompareModal() {
     const stations = appState.compareList
         .map(id => appState.stations.find(s => s.ID === id)
@@ -1248,6 +1339,7 @@ function openCompareModal() {
 /* ============================================================
    ZONE STATISTICS
 ============================================================ */
+/** Calcula y muestra la fila de estadísticas generales: total, operacionales, tipos conector, kW medio. */
 function updateZoneStats(stations) {
     const total       = stations.length;
     const operational = stations.filter(s => s.StatusType && s.StatusType.IsOperational === true).length;
@@ -1275,6 +1367,7 @@ function updateZoneStats(stations) {
     $('#zoneStats').removeClass('d-none');
 }
 
+/** Muestra una segunda fila de stats (en ámbar) con los totales del filtro activo. Se oculta si filtro='all'. */
 function updateFilteredStats() {
     const { connectors, speeds, costs } = appState.advFilters;
     const hasAdvanced = connectors.length > 0 || speeds.length > 0 || costs.length > 0;
@@ -1310,6 +1403,7 @@ function updateFilteredStats() {
 /* ============================================================
    ADVANCED FILTERS
 ============================================================ */
+/** Muestra/oculta el badge "Active" y resalta el botón si hay filtros avanzados activos. */
 function updateAdvancedFilterIndicator() {
     const { connectors, speeds, costs } = appState.advFilters;
     const hasActive = connectors.length > 0 || speeds.length > 0 || costs.length > 0;
@@ -1317,7 +1411,12 @@ function updateAdvancedFilterIndicator() {
     $('#advancedFilterToggle').toggleClass('active', hasActive);
 }
 
-/* Apply the current filter pill + advanced filters to a station array */
+/**
+ * filterStations — aplica el pill activo y los filtros avanzados sobre un array de estaciones.
+ * @param {Array}  stations — array de objetos OCM
+ * @param {string} filter   — 'all' | 'operational' | 'unknown' | 'favorites'
+ * @returns {Array} estaciones que pasan todos los filtros
+ */
 function filterStations(stations, filter) {
     let result;
 
@@ -1332,6 +1431,7 @@ function filterStations(stations, filter) {
     return applyAdvancedFilters(result);
 }
 
+/** Aplica los filtros avanzados (conector, velocidad, coste) sobre el array recibido. */
 function applyAdvancedFilters(stations) {
     const { connectors, speeds, costs } = appState.advFilters;
 
@@ -1362,6 +1462,13 @@ const CONNECTOR_IDS = {
     schuko:  new Set([28])                   // Schuko / CEE 7/4
 };
 
+/**
+ * stationHasConnector — comprueba si una estación tiene el tipo de conector indicado.
+ * Usa primero el ID numérico de OCM (más fiable) y como fallback el nombre del conector.
+ * @param {Object} station — objeto estación de OCM
+ * @param {string} type    — 'ccs' | 'chademo' | 'type2' | 'type1' | 'tesla' | 'schuko'
+ * @returns {boolean}
+ */
 function stationHasConnector(station, type) {
     if (!station.Connections) return false;
     const ids = CONNECTOR_IDS[type];
@@ -1383,6 +1490,11 @@ function stationHasConnector(station, type) {
     });
 }
 
+/**
+ * stationHasSpeed — comprueba si alguna conexión de la estación entra en el rango de velocidad.
+ * @param {Object} station — objeto OCM
+ * @param {string} speed   — 'slow' (≤7kW) | 'fast' (7–50kW) | 'ultra' (>50kW)
+ */
 function stationHasSpeed(station, speed) {
     if (!station.Connections) return false;
     return station.Connections.some(function(c) {
@@ -1397,6 +1509,7 @@ function stationHasSpeed(station, speed) {
     });
 }
 
+/** Devuelve 'free' o 'paid' a partir del campo UsageCost de la estación. */
 function getStationCostType(station) {
     if (!station.UsageCost || station.UsageCost.trim() === '') return 'free';
     const cost = station.UsageCost.toLowerCase().trim();
@@ -1407,6 +1520,11 @@ function getStationCostType(station) {
 /* ============================================================
    STATUS HELPERS
 ============================================================ */
+/**
+ * getStatusText — convierte el objeto StatusType de OCM en un texto legible.
+ * @param {Object|null} statusType
+ * @returns {string} p.ej. 'Operational', 'Out of service', 'Unknown'
+ */
 function getStatusText(statusType) {
     if (!statusType) return 'Unknown';
     if (statusType.IsOperational === true)  return 'Operational';
@@ -1421,6 +1539,7 @@ function getStatusText(statusType) {
     return map[statusType.Title] || statusType.Title || 'Unknown';
 }
 
+/** Devuelve la clase CSS ('operational' | 'offline' | 'unknown') para estilizar badges y pills. */
 function getStatusClass(statusType) {
     if (!statusType) return 'unknown';
     if (statusType.IsOperational === true)  return 'operational';
@@ -1428,12 +1547,17 @@ function getStatusClass(statusType) {
     return 'unknown';
 }
 
+/** Devuelve el color hex del marcador SVG según el estado: verde / rojo / ámbar. */
 function getStatusColor(statusType) {
     const colors = { operational: '#00d084', offline: '#ef4444', unknown: '#f59e0b' };
     return colors[getStatusClass(statusType)] || colors.unknown;
 }
 
-/* Return connector type names, optionally capped at maxItems */
+/**
+ * getConnectorsList — devuelve los tipos de conector únicos como string separado por comas.
+ * @param {Object} station  — objeto OCM
+ * @param {number} maxItems — límite opcional; añade '…' si hay más
+ */
 function getConnectorsList(station, maxItems) {
     if (!station.Connections || station.Connections.length === 0) return '';
     const unique = [...new Set(
@@ -1447,7 +1571,7 @@ function getConnectorsList(station, maxItems) {
     return unique.join(', ');
 }
 
-/* Build a readable address string from AddressInfo */
+/** buildAddress — construye una dirección legible a partir del objeto AddressInfo de OCM. */
 function buildAddress(info) {
     const parts = [
         info.AddressLine1,
@@ -1458,7 +1582,7 @@ function buildAddress(info) {
     return parts.join(', ') || 'Address not available';
 }
 
-/* Escape user-facing strings to prevent XSS */
+/** escapeHtml — escapa caracteres HTML especiales para prevenir XSS al insertar datos externos en el DOM. */
 function escapeHtml(text) {
     if (typeof text !== 'string') return text || '';
     return text
@@ -1472,16 +1596,25 @@ function escapeHtml(text) {
 /* ============================================================
    UI HELPERS
 ============================================================ */
+/** Muestra el spinner de carga y oculta la lista y el mensaje de estado. */
 function showLoadingSpinner() {
     $('#statusMessage').hide();
     $('#stationsList').addClass('d-none').hide();
     $('#loadingSpinner').removeClass('d-none').show();
 }
 
+/** Oculta el spinner de carga. */
 function hideLoadingSpinner() {
     $('#loadingSpinner').addClass('d-none').hide();
 }
 
+/**
+ * showStatusMessage — muestra el panel de estado vacío/error/sin resultados en el sidebar.
+ * @param {string} type    — 'default' | 'error' | 'no-results'
+ * @param {string} icon    — clase FontAwesome para el icono
+ * @param {string} title   — título del mensaje
+ * @param {string} message — texto descriptivo
+ */
 function showStatusMessage(type, icon, title, message) {
     hideLoadingSpinner();
     $('#stationsList').addClass('d-none').hide();
@@ -1493,15 +1626,18 @@ function showStatusMessage(type, icon, title, message) {
     $msg.show();
 }
 
+/** Actualiza el badge de conteo en el sidebar y el badge del FAB. */
 function updateStationsCount(count) {
     $('#stationsCount').text(count);
     updateFabBadge(count);
 }
 
+/** Cambia el icono del FAB según si el sidebar está abierto o cerrado. */
 function updateFabIcon(isOpen) {
     $('#togglePanel i').attr('class', isOpen ? 'bi bi-chevron-down' : 'bi bi-list-ul');
 }
 
+/** Muestra el número de estaciones en el badge del FAB; se oculta si count=0 y limita a '99+'. */
 function updateFabBadge(count) {
     const $badge = $('#fabBadge');
     count > 0
@@ -1509,6 +1645,11 @@ function updateFabBadge(count) {
         : $badge.addClass('d-none');
 }
 
+/**
+ * showToast — muestra una notificación tipo toast de Bootstrap durante 4 segundos.
+ * @param {string} message — contenido HTML del mensaje
+ * @param {string} type    — 'info' | 'success' | 'error' | 'warning'
+ */
 function showToast(message, type) {
     const $toast = $('#notificationToast');
     $toast.removeClass('success error info warning').addClass(type || 'info');
@@ -1521,6 +1662,11 @@ function showToast(message, type) {
 /* ============================================================
    INIT
 ============================================================ */
+/**
+ * $(document).ready — punto de entrada principal.
+ * Restaura tema, favoritos, historial y radio guardados en localStorage.
+ * También registra manejadores de errores de Google Maps API.
+ */
 $(document).ready(function() {
     initTheme();
     loadFavorites();
