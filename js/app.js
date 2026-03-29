@@ -911,14 +911,13 @@ function centerMapOnStation(lat, lng, stationId) {
         const marker  = appState.markers.find(m => m.stationId === stationId);
         const station = appState.stations.find(s => s.ID === stationId)
                      || appState.favorites.find(s => s.ID === stationId);
-        if (station) {
-            if (marker && marker.getMap()) {
-                openInfoWindow(marker, station);
-            } else if (marker) {
-                // Force show if still in cluster at this zoom
+        if (station && marker) {
+            if (!marker.getMap()) {
+                // Marker still managed by clusterer — extract it to avoid duplicates
+                if (appState.clusterer) appState.clusterer.removeMarker(marker);
                 marker.setMap(appState.map);
-                openInfoWindow(marker, station);
             }
+            openInfoWindow(marker, station);
         }
     });
 
