@@ -312,6 +312,45 @@ html, body {
     color: var(--color-danger);
 }
 
+.suggestion-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 0.45rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--color-text);
+    transition: background 0.15s ease;
+    overflow: hidden;
+}
+
+.suggestion-item:hover {
+    background: rgba(0, 208, 132, 0.07);
+}
+
+.suggestion-item > i {
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
+.suggestion-main {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
+    max-width: 55%;
+}
+
+.suggestion-secondary {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
 /* ============================================================
    MAIN LAYOUT
 ============================================================ */

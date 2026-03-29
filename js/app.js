@@ -58,8 +58,9 @@ function initMap() {
         }
     });
 
-    appState.infoWindow = new google.maps.InfoWindow();
-    appState.geocoder   = new google.maps.Geocoder();
+    appState.infoWindow          = new google.maps.InfoWindow();
+    appState.geocoder            = new google.maps.Geocoder();
+    appState.autocompleteService = new google.maps.places.AutocompleteService();
 
     // Close InfoWindow on desktop click
     appState.map.addListener('click', function() {
@@ -317,12 +318,22 @@ function initEventListeners() {
     });
 
     $('#searchInput').on('input', function() {
-        // Hide history when user starts typing
-        if ($(this).val().length > 0) {
-            hideSearchHistory();
-        } else {
+        const val = $(this).val().trim();
+        if (val.length >= 2) {
+            fetchAutocompleteSuggestions(val);
+        } else if (val.length === 0) {
             showSearchHistory();
+        } else {
+            hideSearchHistory();
         }
+    });
+
+    // Autocomplete suggestion click
+    $(document).on('click', '.suggestion-item', function() {
+        const description = $(this).data('description');
+        $('#searchInput').val(description);
+        hideSearchHistory();
+        searchByAddress(description);
     });
 
     // History item click (delegated)
@@ -577,6 +588,45 @@ function showSearchHistory() {
         </div>`;
     });
 
+    $dropdown.html(html).removeClass('d-none');
+}
+
+/* ============================================================
+   AUTOCOMPLETE SUGGESTIONS
+============================================================ */
+var _autocompleteTimer = null;
+
+function fetchAutocompleteSuggestions(query) {
+    if (!appState.autocompleteService) return;
+    clearTimeout(_autocompleteTimer);
+    _autocompleteTimer = setTimeout(function() {
+        appState.autocompleteService.getPlacePredictions(
+            { input: query, types: ['geocode'] },
+            function(predictions, status) {
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    showAutocompleteSuggestions(predictions.slice(0, 5));
+                } else {
+                    hideSearchHistory();
+                }
+            }
+        );
+    }, 200);
+}
+
+function showAutocompleteSuggestions(predictions) {
+    const $dropdown = $('#searchHistoryDropdown');
+    let html = '';
+    predictions.forEach(function(p) {
+        const main      = escapeHtml(p.structured_formatting.main_text);
+        const secondary = p.structured_formatting.secondary_text
+            ? escapeHtml(p.structured_formatting.secondary_text)
+            : '';
+        html += `<div class="suggestion-item" data-place-id="${p.place_id}" data-description="${escapeHtml(p.description)}">
+            <i class="bi bi-geo-alt"></i>
+            <span class="suggestion-main">${main}</span>
+            ${secondary ? `<span class="suggestion-secondary">${secondary}</span>` : ''}
+        </div>`;
+    });
     $dropdown.html(html).removeClass('d-none');
 }
 
