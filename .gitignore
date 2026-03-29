@@ -7,6 +7,10 @@ js/config.js
 # Tunnel binary — local dev tool, not part of the app
 cloudflared
 
+# Claude Code internal files — not part of the project
+.claude/
+PROJECT_MEMORY.md
+
 # System files
 .DS_Store
 Thumbs.db
