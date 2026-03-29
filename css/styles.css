@@ -1,6 +1,30 @@
 /* ============================================================
    EV CHARGE LOCATOR — Custom styles
    Colors: electric greens, dark blues, clean whites
+
+   TABLE OF CONTENTS
+   ──────────────────────────────────────────────────────────────
+    1.  CSS VARIABLES          ln ~6    Design tokens: colours, spacing, theme
+    2.  NAVBAR                 ln ~80   Fixed top bar with logo and search
+    3.  SEARCH HISTORY         ln ~227  Autocomplete / history dropdown
+    4.  MAIN LAYOUT            ln ~355  Sidebar + map flex container
+    5.  SIDEBAR                ln ~364  Collapsible station list panel
+    6.  ADVANCED FILTERS       ln ~444  Radius slider, connector/speed/cost checks
+    7.  ZONE STATISTICS        ln ~565  Stats row (total, online, avg kW)
+    8.  VIEW TOGGLE            ln ~625  Map-only / list-only / both (desktop)
+    9.  LOADING SPINNER        ln ~664  Animated EV spinner overlay
+   10.  STATION LIST           ln ~769  Station cards and detail elements
+   11.  COMPARE BAR            ln ~952  Bottom bar for station comparison
+   12.  COMPARE TABLE          ln ~1013 Modal table comparing up to 3 stations
+   13.  MAP SECTION            ln ~1070 Map container and loading overlay
+   14.  TOAST                  ln ~1209 Notification toasts
+   15.  MODAL                  ln ~1231 Station detail and comparison modals
+   16.  GOOGLE MAPS INFOWINDOW ln ~1335 Custom popup styles for map markers
+   17.  THEME TOGGLE           ln ~1452 Sun/moon button animation
+   18.  LIGHT THEME OVERRIDES  ln ~1477 Component colour fixes for light mode
+   19.  RESPONSIVE             ln ~1526 Mobile layout and sidebar bottom-sheet
+   20.  UTILITIES              ln ~1665 Helper classes and animations
+   ──────────────────────────────────────────────────────────────
    ============================================================ */
 
 /* CSS variables — dark theme (default) */
