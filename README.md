@@ -76,7 +76,7 @@ Options:
 - **Python** — `python -m http.server 4200`
 - **Node.js** — `npx serve -l 4200`
 
-> Opening `index.html` directly as a `file://` URL will not work due to browser CORS restrictions on the Google Maps API.
+> A local HTTP server is required — Google Maps does not work when opening the file directly from the filesystem.
 
 ## License
 
