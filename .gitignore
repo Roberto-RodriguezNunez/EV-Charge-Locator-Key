@@ -1,14 +1,21 @@
-# Claves de API — nunca subir al repositorio
+# Drop documents here to process — never committed
+_inbox/
+
+# API keys — never commit to the repository
 js/config.js
 
 # Tunnel binary — local dev tool, not part of the app
 cloudflared
 
-# Archivos de sistema
+# Claude Code internal files — not part of the project
+.claude/
+PROJECT_MEMORY.md
+
+# System files
 .DS_Store
 Thumbs.db
 
-# Editores
+# Editors
 .vscode/
 .idea/
 *.sublime-workspace

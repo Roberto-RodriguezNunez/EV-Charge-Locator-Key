@@ -1,17 +1,54 @@
 'use strict';
 
-// Keys are loaded from config.js (excluded from git).
-// Copy config.example.js as config.js to get started.
+/**
+ * EV CHARGE LOCATOR — app.js
+ * Static SPA (no framework, no build step).
+ * Dependencies: jQuery 3.7, Bootstrap 5, Google Maps JS API, Open Charge Map API.
+ *
+ * TABLE OF CONTENTS
+ * ──────────────────────────────────────────────────────────────
+ *  1.  CONFIG & STATE       ln ~7   Global configuration and shared state
+ *  2.  INIT                 ln ~47  Google Maps callback, app bootstrap
+ *  3.  THEME                ln ~85  Dark/light mode, map styles
+ *  4.  EVENT LISTENERS      ln ~196 Registration of all DOM events
+ *  5.  FILTERS & SYNC       ln ~379 Re-render and marker sync after filter changes
+ *  6.  VIEW MODES           ln ~417 Modes: map+list / map only / list only
+ *  7.  GEOLOCATION          ln ~444 Browser GPS, user position marker
+ *  8.  SEARCH               ln ~525 Text geocoding via Google Maps
+ *  9.  SEARCH HISTORY       ln ~559 Search history in localStorage
+ * 10.  AUTOCOMPLETE         ln ~607 Places suggestions while typing
+ * 11.  OCM API              ln ~650 AJAX request to Open Charge Map
+ * 12.  MARKERS & CLUSTERING ln ~726 Pins SVG, MarkerClusterer, limpieza
+ * 13.  INFO WINDOW          ln ~817 Popup shown when clicking a marker
+ * 14.  STATION LIST         ln ~878 Sidebar cards, detail modal
+ * 15.  FAVORITES            ln ~1112 Save/load stations to localStorage
+ * 16.  COMPARE              ln ~1173 Side-by-side comparison of up to 3 stations
+ * 17.  ZONE STATISTICS      ln ~1251 General and filtered statistics bar
+ * 18.  ADVANCED FILTERS     ln ~1313 Client-side filtering by connector/speed/cost
+ * 19.  STATUS HELPERS       ln ~1410 Text, CSS class and color from OCM status
+ * 20.  UI HELPERS           ln ~1475 Spinner, toasts, badges, FAB
+ * ──────────────────────────────────────────────────────────────
+ */
+
+// API keys are loaded from config.js (excluded from the repository).
+// Copy config.example.js as config.js and fill in your keys to run the app.
 
 /* Search settings */
 const CONFIG = {
-    searchRadiusKm: 10,      // km radius for the OCM query
-    maxResults:     50,      // max stations returned
+    searchRadiusKm: 10,      // km radius for the OCM query (updated by slider)
+    maxResults:     500,     // base value — overridden dynamically by getMaxResults()
     defaultLat:     40.4168, // fallback center (Madrid)
     defaultLng:     -3.7038,
     defaultZoom:    13,
     markerZoom:     16       // zoom when centering on a station
 };
+
+/* LocalStorage keys */
+const LS_THEME     = 'ev-theme';
+const LS_FAVORITES = 'ev-favorites';
+const LS_HISTORY   = 'ev-history';
+const LS_RADIUS    = 'ev-radius';
+const MAX_HISTORY  = 8;
 
 /* App state */
 const appState = {
@@ -22,10 +59,24 @@ const appState = {
     stations:      [],
     activeCardId:  null,
     currentFilter: 'all',
-    currentModal:  null
+    currentModal:  null,
+    userMarker:    null,
+    clusterer:     null,
+    favorites:     [],        // Station objects saved to localStorage
+    compareList:   [],        // Station IDs selected for comparison (max 3)
+    advFilters:    {
+        connectors: [],       // 'ccs' | 'chademo' | 'type2' | 'type1'
+        speeds:     [],       // 'slow' | 'fast' | 'ultra'
+        costs:      []        // 'free' | 'paid'
+    },
+    searchHistory: [],
+    viewMode:      'both'     // 'both' | 'map' | 'list'
 };
 
-// Called by the Google Maps SDK once the script loads
+/**
+ * initMap — callback invoked by the Google Maps SDK once it has finished loading.
+ * Creates the map, geocoder, autocomplete service and starts the app.
+ */
 function initMap() {
     $('#mapOverlay').addClass('hidden');
 
@@ -41,8 +92,9 @@ function initMap() {
         }
     });
 
-    appState.infoWindow = new google.maps.InfoWindow();
-    appState.geocoder   = new google.maps.Geocoder();
+    appState.infoWindow          = new google.maps.InfoWindow();
+    appState.geocoder            = new google.maps.Geocoder();
+    appState.autocompleteService = new google.maps.places.AutocompleteService();
 
     // Close InfoWindow on desktop click
     appState.map.addListener('click', function() {
@@ -52,8 +104,7 @@ function initMap() {
     appState.map.addListener('dragstart', function() {
         appState.infoWindow.close();
     });
-    // Close InfoWindow on mobile tap (pointerdown fires before Maps API 'click')
-    // but not when tapping inside the InfoWindow itself (.gm-style-iw-c)
+    // Close InfoWindow on mobile tap
     document.getElementById('map').addEventListener('pointerdown', function(e) {
         if (!e.target.closest('.gm-style-iw-c') && !e.target.closest('.gm-style-iw')) {
             appState.infoWindow.close();
@@ -68,28 +119,27 @@ function initMap() {
    THEME
 ============================================================ */
 
+/** Reads the saved theme from localStorage; falls back to the system preference. */
 function initTheme() {
-    var saved  = localStorage.getItem('ev-theme');
+    var saved  = localStorage.getItem(LS_THEME);
     var system = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
     applyTheme(saved || system, false);
 
-    // Follow system changes only when the user hasn't manually picked a theme
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-        if (!localStorage.getItem('ev-theme')) {
+        if (!localStorage.getItem(LS_THEME)) {
             applyTheme(e.matches ? 'dark' : 'light', true);
         }
     });
 }
 
+/** Applies 'dark' or 'light' to the HTML data-theme attribute and updates the toggle button icon. */
 function applyTheme(theme, updateMap) {
-    // Briefly add class so CSS transitions fire during the switch
     document.documentElement.classList.add('theme-switching');
     document.documentElement.setAttribute('data-theme', theme);
     setTimeout(function() {
         document.documentElement.classList.remove('theme-switching');
     }, 300);
 
-    // Update button icon and tooltip
     if (theme === 'dark') {
         $('#themeBtn').find('i').attr('class', 'bi bi-sun-fill');
         $('#themeBtn').attr('title', 'Switch to light mode');
@@ -98,16 +148,16 @@ function applyTheme(theme, updateMap) {
         $('#themeBtn').attr('title', 'Switch to dark mode');
     }
 
-    // Re-apply map styles if the map is already loaded
     if (updateMap && appState.map) {
         appState.map.setOptions({ styles: getMapStyles() });
     }
 }
 
+/** Toggles between dark and light and persists the choice in localStorage. */
 function toggleTheme() {
     var current = document.documentElement.getAttribute('data-theme');
     var next    = current === 'dark' ? 'light' : 'dark';
-    localStorage.setItem('ev-theme', next);
+    localStorage.setItem(LS_THEME, next);
     applyTheme(next, true);
 }
 
@@ -118,6 +168,7 @@ function getMapStyles() {
         : getDarkMapStyles();
 }
 
+/** Returns the JSON style array for the map in dark mode (navy-blue palette). */
 function getDarkMapStyles() {
     return [
         { elementType: 'geometry',             stylers: [{ color: '#1a2535' }] },
@@ -148,6 +199,7 @@ function getDarkMapStyles() {
     ];
 }
 
+/** Returns the JSON style array for the map in light mode (greys and whites). */
 function getLightMapStyles() {
     return [
         { elementType: 'geometry',             stylers: [{ color: '#f5f5f5' }] },
@@ -176,24 +228,38 @@ function getLightMapStyles() {
     ];
 }
 
-/* Bind all UI events */
+/* ============================================================
+   EVENT LISTENERS
+============================================================ */
+/**
+ * initEventListeners — registers all UI events.
+ * Organised in blocks: search, geolocation, filters, theme,
+ * mobile sidebar, modal, comparator, history and autocomplete.
+ */
 function initEventListeners() {
+    // Search form
     $('#searchForm').on('submit', function(e) {
         e.preventDefault();
         const query = $('#searchInput').val().trim();
-        if (query.length > 0) searchByAddress(query);
+        if (query.length > 0) {
+            hideSearchHistory();
+            searchByAddress(query);
+        }
     });
 
+    // Geolocation button
     $('#geoBtn').on('click', function() {
         attemptGeolocation(true);
     });
 
-    // Filter pills
+    // Status filter pills
     $(document).on('click', '.pill', function() {
         $('.pill').removeClass('active');
         $(this).addClass('active');
         appState.currentFilter = $(this).data('filter');
         renderStationsList(appState.stations);
+        syncMarkersToFilter();
+        updateFilteredStats();
     });
 
     // Theme toggle
@@ -219,9 +285,207 @@ function initEventListeners() {
         centerMapOnStation(s.AddressInfo.Latitude, s.AddressInfo.Longitude, s.ID);
         bootstrap.Modal.getInstance(document.getElementById('stationModal')).hide();
     });
+
+    // ---- Advanced filters ----
+
+    // Toggle advanced filter panel
+    $('#advancedFilterToggle').on('click', function() {
+        const $panel = $('#advancedFiltersPanel');
+        const open   = $panel.hasClass('d-none');
+        $panel.toggleClass('d-none', !open);
+        $('#advancedFilterToggle').toggleClass('active', open);
+        $('#advFilterChevron').css('transform', open ? 'rotate(180deg)' : '');
+    });
+
+    // Radius slider — persist value and re-fetch if stations already loaded
+    var _radiusTimer = null;
+    $('#radiusSlider').on('input', function() {
+        const val = parseInt($(this).val());
+        CONFIG.searchRadiusKm = val;
+        $('#radiusValue').text(val);
+        localStorage.setItem(LS_RADIUS, val);
+        if (appState.userMarker) {
+            clearTimeout(_radiusTimer);
+            _radiusTimer = setTimeout(function() {
+                const pos = appState.userMarker.getPosition();
+                fetchChargingStations(pos.lat(), pos.lng());
+            }, 600);
+        }
+    });
+
+    // Connector checkboxes
+    $(document).on('change', '[name="connector"]', function() {
+        appState.advFilters.connectors = $('[name="connector"]:checked').map(function() {
+            return $(this).val();
+        }).get();
+        applyAndRender();
+    });
+
+    // Speed checkboxes
+    $(document).on('change', '[name="speed"]', function() {
+        appState.advFilters.speeds = $('[name="speed"]:checked').map(function() {
+            return $(this).val();
+        }).get();
+        applyAndRender();
+    });
+
+    // Cost checkboxes
+    $(document).on('change', '[name="cost"]', function() {
+        appState.advFilters.costs = $('[name="cost"]:checked').map(function() {
+            return $(this).val();
+        }).get();
+        applyAndRender();
+    });
+
+    // Reset all advanced filters
+    $('#resetFilters').on('click', function() {
+        appState.advFilters = { connectors: [], speeds: [], costs: [] };
+        $('[name="connector"], [name="speed"], [name="cost"]').prop('checked', false);
+        CONFIG.searchRadiusKm = 10;
+        $('#radiusSlider').val(10);
+        $('#radiusValue').text(10);
+        applyAndRender();
+    });
+
+    // ---- View toggle (desktop) ----
+    $('#viewBoth').on('click', function() { setViewMode('both'); });
+    $('#viewMap').on('click',  function() { setViewMode('map');  });
+    $('#viewList').on('click', function() { setViewMode('list'); });
+
+    // ---- Compare bar ----
+    $('#compareBtn').on('click', openCompareModal);
+    $('#compareClearBtn').on('click', function() {
+        appState.compareList = [];
+        $('.btn-compare-check').removeClass('active');
+        $('#compareBar').addClass('d-none');
+    });
+
+    // ---- Search history ----
+    $('#searchInput').on('focus', function() {
+        showSearchHistory();
+    });
+
+    $('#searchInput').on('blur', function() {
+        // Delay so clicks inside the dropdown register first
+        setTimeout(hideSearchHistory, 200);
+    });
+
+    $('#searchInput').on('input', function() {
+        const val = $(this).val().trim();
+        if (val.length >= 2) {
+            fetchAutocompleteSuggestions(val);
+        } else if (val.length === 0) {
+            showSearchHistory();
+        } else {
+            hideSearchHistory();
+        }
+    });
+
+    // Autocomplete suggestion click
+    $(document).on('click', '.suggestion-item', function() {
+        const description = $(this).data('description');
+        $('#searchInput').val(description);
+        hideSearchHistory();
+        searchByAddress(description);
+    });
+
+    // History item click (delegated)
+    $(document).on('click', '.history-item', function(e) {
+        if ($(e.target).closest('.history-remove').length) return; // handled below
+        const query = $(this).data('query');
+        if (query) {
+            $('#searchInput').val(query);
+            hideSearchHistory();
+            searchByAddress(query);
+        }
+    });
+
+    // History item remove
+    $(document).on('click', '.history-remove', function(e) {
+        e.stopPropagation();
+        const idx = parseInt($(this).data('index'));
+        appState.searchHistory.splice(idx, 1);
+        localStorage.setItem(LS_HISTORY, JSON.stringify(appState.searchHistory));
+        showSearchHistory();
+    });
+
+    // Clear all history
+    $(document).on('click', '#clearHistoryBtn', function(e) {
+        e.stopPropagation();
+        appState.searchHistory = [];
+        localStorage.removeItem(LS_HISTORY);
+        hideSearchHistory();
+    });
 }
 
-/* Ask browser for current position */
+/** Single entry point for any filter change: updates list, markers and stats. */
+function applyAndRender() {
+    updateAdvancedFilterIndicator();
+    if (appState.stations.length > 0 || appState.currentFilter === 'favorites') {
+        renderStationsList(appState.stations);
+        syncMarkersToFilter();
+        updateFilteredStats();
+    }
+}
+
+/* Show only markers whose station passes the current filters */
+function syncMarkersToFilter() {
+    if (appState.markers.length === 0) return;
+
+    const filtered   = filterStations(appState.stations, appState.currentFilter);
+    const visibleIds = new Set(filtered.map(s => s.ID));
+
+    const visible = appState.markers.filter(m => visibleIds.has(m.stationId));
+    const hidden  = appState.markers.filter(m => !visibleIds.has(m.stationId));
+
+    // Explicitly hide non-matching markers (handles markers placed directly
+    // via setMap, which clusterer.clearMarkers() won't catch)
+    hidden.forEach(m => m.setMap(null));
+
+    if (appState.clusterer) {
+        appState.clusterer.clearMarkers();
+        if (visible.length > 0) appState.clusterer.addMarkers(visible);
+    } else {
+        visible.forEach(m => m.setMap(appState.map));
+    }
+
+    if (appState.activeCardId && !visibleIds.has(appState.activeCardId)) {
+        appState.infoWindow.close();
+    }
+}
+
+/* ============================================================
+   VIEW MODES (desktop)
+============================================================ */
+/** Changes the desktop layout: 'both' (map + list) | 'map' only | 'list' only. */
+function setViewMode(mode) {
+    appState.viewMode = mode;
+    $('.view-btn').removeClass('active');
+    $('#view' + mode.charAt(0).toUpperCase() + mode.slice(1)).addClass('active');
+
+    const $sidebar = $('#sidebar');
+    const $map     = $('#mapSection');
+
+    $sidebar.removeClass('view-hidden view-full');
+    $map.removeClass('view-hidden');
+
+    if (mode === 'map') {
+        $sidebar.addClass('view-hidden');
+        if (appState.map) {
+            setTimeout(function() {
+                google.maps.event.trigger(appState.map, 'resize');
+            }, 50);
+        }
+    } else if (mode === 'list') {
+        $map.addClass('view-hidden');
+        $sidebar.addClass('view-full');
+    }
+}
+
+/* ============================================================
+   GEOLOCATION
+============================================================ */
+/** Requests the GPS position from the browser and calls fetchChargingStations on success. */
 function attemptGeolocation() {
     if (!navigator.geolocation) {
         showStatusMessage('error', 'fa-solid fa-location-slash',
@@ -275,7 +539,7 @@ function attemptGeolocation() {
     );
 }
 
-/* Blue dot for the user's own position */
+/** Draws the blue dot (user position) on the map; replaces the previous one if it exists. */
 function addUserLocationMarker(lat, lng) {
     const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">
@@ -300,7 +564,10 @@ function addUserLocationMarker(lat, lng) {
     appState.userMarker = marker;
 }
 
-/* Geocode a text query and load stations at that position */
+/* ============================================================
+   SEARCH
+============================================================ */
+/** Geocodes the address with Google Maps and calls fetchChargingStations with the coordinates. */
 function searchByAddress(query) {
     showLoadingSpinner();
 
@@ -314,6 +581,10 @@ function searchByAddress(query) {
             appState.map.setZoom(CONFIG.defaultZoom);
             addUserLocationMarker(lat, lng);
             $('#searchInput').val(results[0].formatted_address);
+
+            // Save to search history
+            saveSearchHistory(results[0].formatted_address);
+
             fetchChargingStations(lat, lng);
         } else {
             hideLoadingSpinner();
@@ -328,7 +599,124 @@ function searchByAddress(query) {
     });
 }
 
-/* Ajax request to Open Charge Map */
+/* ============================================================
+   SEARCH HISTORY
+============================================================ */
+/** Loads the search history from localStorage into appState.searchHistory. */
+function loadSearchHistory() {
+    try {
+        appState.searchHistory = JSON.parse(localStorage.getItem(LS_HISTORY)) || [];
+    } catch(e) {
+        appState.searchHistory = [];
+    }
+}
+
+/** Adds the query to history (no duplicates, max MAX_HISTORY entries) and persists it. */
+function saveSearchHistory(query) {
+    loadSearchHistory();
+    appState.searchHistory = appState.searchHistory.filter(
+        q => q.toLowerCase() !== query.toLowerCase()
+    );
+    appState.searchHistory.unshift(query);
+    appState.searchHistory = appState.searchHistory.slice(0, MAX_HISTORY);
+    localStorage.setItem(LS_HISTORY, JSON.stringify(appState.searchHistory));
+}
+
+/** Renders the search history in the input dropdown. */
+function showSearchHistory() {
+    loadSearchHistory();
+    const $dropdown = $('#searchHistoryDropdown');
+
+    if (appState.searchHistory.length === 0) {
+        $dropdown.addClass('d-none');
+        return;
+    }
+
+    let html = `<div class="history-header">
+        <span>Recent searches</span>
+        <button id="clearHistoryBtn" class="history-clear-all">Clear all</button>
+    </div>`;
+
+    appState.searchHistory.forEach(function(q, i) {
+        html += `<div class="history-item" data-query="${escapeHtml(q)}">
+            <i class="bi bi-clock-history"></i>
+            <span>${escapeHtml(q)}</span>
+            <button class="history-remove" data-index="${i}" title="Remove">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>`;
+    });
+
+    $dropdown.html(html).removeClass('d-none');
+}
+
+/* ============================================================
+   AUTOCOMPLETE SUGGESTIONS
+============================================================ */
+var _autocompleteTimer = null; // Debounce timer — prevents a request on every keystroke
+
+/** Queries the Places AutocompleteService with a 200 ms debounce and shows up to 5 suggestions. */
+function fetchAutocompleteSuggestions(query) {
+    if (!appState.autocompleteService) return;
+    clearTimeout(_autocompleteTimer);
+    _autocompleteTimer = setTimeout(function() {
+        appState.autocompleteService.getPlacePredictions(
+            { input: query, types: ['geocode'] },
+            function(predictions, status) {
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    showAutocompleteSuggestions(predictions.slice(0, 5));
+                } else {
+                    hideSearchHistory();
+                }
+            }
+        );
+    }, 200);
+}
+
+/** Renders the Places predictions in the same dropdown as the history. */
+function showAutocompleteSuggestions(predictions) {
+    const $dropdown = $('#searchHistoryDropdown');
+    let html = '';
+    predictions.forEach(function(p) {
+        const main      = escapeHtml(p.structured_formatting.main_text);
+        const secondary = p.structured_formatting.secondary_text
+            ? escapeHtml(p.structured_formatting.secondary_text)
+            : '';
+        html += `<div class="suggestion-item" data-place-id="${p.place_id}" data-description="${escapeHtml(p.description)}">
+            <i class="bi bi-geo-alt"></i>
+            <span class="suggestion-main">${main}</span>
+            ${secondary ? `<span class="suggestion-secondary">${secondary}</span>` : ''}
+        </div>`;
+    });
+    $dropdown.html(html).removeClass('d-none');
+}
+
+function hideSearchHistory() {
+    $('#searchHistoryDropdown').addClass('d-none');
+}
+
+/* ============================================================
+   OPEN CHARGE MAP API
+============================================================ */
+
+/**
+ * getMaxResults — scales the result limit based on the active search radius.
+ * Prevents small searches from making unnecessarily large requests
+ * and wide searches from being truncated by the default limit.
+ */
+function getMaxResults() {
+    const r = CONFIG.searchRadiusKm;
+    if (r <= 10) return 500;
+    if (r <= 20) return 1000;
+    if (r <= 35) return 2000;
+    return 5000;
+}
+
+/**
+ * fetchChargingStations — AJAX request to the Open Charge Map REST API.
+ * Key params: lat/lng, distance (km), maxresults (scaled by getMaxResults).
+ * On success: creates markers, renders the list, applies active filters and updates stats.
+ */
 function fetchChargingStations(lat, lng) {
     showLoadingSpinner();
     clearMarkers();
@@ -343,8 +731,7 @@ function fetchChargingStations(lat, lng) {
             longitude:    lng,
             distance:     CONFIG.searchRadiusKm,
             distanceunit: 'KM',
-            maxresults:   CONFIG.maxResults
-            // compact and verbose omitted — defaults (false/true) return full reference data
+            maxresults:   getMaxResults()
         },
         success: function(data) {
             hideLoadingSpinner();
@@ -360,7 +747,10 @@ function fetchChargingStations(lat, lng) {
             appState.stations = data;
             createMarkers(data);
             renderStationsList(data);
-            updateStationsCount(data.length);
+            syncMarkersToFilter();
+            updateStationsCount(filterStations(data, appState.currentFilter).length);
+            updateZoneStats(data);
+            updateFilteredStats();
 
             showToast(
                 '<i class="bi bi-check-circle-fill me-1"></i> Found <strong>' +
@@ -385,22 +775,28 @@ function fetchChargingStations(lat, lng) {
 
             showStatusMessage('error', 'fa-solid fa-triangle-exclamation', 'Failed to load stations', msg);
             showToast('<i class="bi bi-wifi-off me-1"></i> ' + msg, 'error');
-
             console.error('[EV Charge Locator] Ajax error:', xhr.status, xhr.responseText);
         }
     });
 }
 
-/* Drop a marker for each station */
+/* ============================================================
+   MARKERS & CLUSTERING
+============================================================ */
+/**
+ * createMarkers — creates one SVG Marker per station and groups them with MarkerClusterer.
+ * Markers are not added directly to the map; the clusterer manages their visibility.
+ */
 function createMarkers(stations) {
     stations.forEach(function(station, index) {
         const lat   = station.AddressInfo.Latitude;
         const lng   = station.AddressInfo.Longitude;
-        const color = getStatusColor(station.StatusType);
+        const isFav = isFavorite(station.ID);
+        const color = isFav ? '#f59e0b' : getStatusColor(station.StatusType);
 
         const marker = new google.maps.Marker({
             position:     { lat, lng },
-            map:          appState.map,
+            // map NOT set here — clusterer manages it
             title:        station.AddressInfo.Title,
             icon: {
                 url:        createMarkerSVG(color),
@@ -418,30 +814,75 @@ function createMarkers(stations) {
 
         appState.markers.push(marker);
     });
+
+    // Initialize MarkerClusterer if available
+    if (typeof markerClusterer !== 'undefined' && appState.markers.length > 0) {
+        appState.clusterer = new markerClusterer.MarkerClusterer({
+            map:      appState.map,
+            markers:  appState.markers,
+            renderer: { render: clusterRenderer }
+        });
+    } else {
+        // Fallback: add markers directly to map
+        appState.markers.forEach(m => m.setMap(appState.map));
+    }
 }
 
-/* Build the pin SVG with a dynamic color */
+/** Custom cluster renderer: green circle with the count of grouped stations. */
+function clusterRenderer({ count, position }) {
+    const size = count < 10 ? 40 : count < 100 ? 48 : 54;
+    const svg  = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
+        <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 1}" fill="#00d084" opacity="0.92"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 7}" fill="none" stroke="#fff" stroke-width="2" opacity="0.5"/>
+        <text x="${size/2}" y="${size/2 + 5}" text-anchor="middle" fill="#fff"
+              font-size="14" font-weight="700" font-family="system-ui,sans-serif">${count}</text>
+    </svg>`;
+    const url  = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+    const half = size / 2;
+
+    return new google.maps.Marker({
+        position,
+        icon: {
+            url,
+            scaledSize: new google.maps.Size(size, size),
+            anchor:     new google.maps.Point(half, half)
+        },
+        label: '',
+        zIndex: Number(google.maps.Marker.MAX_ZINDEX) + count
+    });
+}
+
+/** Generates the map pin SVG (teardrop + lightning bolt) with the given colour. Returns a data URI. */
 function createMarkerSVG(color) {
     const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 44" width="36" height="44">
-          <!-- pin shape -->
           <path d="M18 0C8.06 0 0 8.06 0 18c0 13.5 18 26 18 26s18-12.5 18-26C36 8.06 27.94 0 18 0z"
                 fill="${color}" opacity="0.95"/>
           <circle cx="18" cy="17" r="10" fill="rgba(255,255,255,0.15)"/>
-          <!-- bolt icon -->
           <path d="M20.5 8.5l-5 9h4.5l-4.5 9 8-11h-4.5z" fill="#ffffff" opacity="0.95"/>
         </svg>`;
     return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
 }
 
-/* Remove all station markers from the map */
+/** Removes all markers from the map and destroys the clusterer (called before each new search). */
 function clearMarkers() {
+    if (appState.clusterer) {
+        appState.clusterer.clearMarkers();
+        appState.clusterer = null;
+    }
     appState.markers.forEach(m => m.setMap(null));
     appState.markers = [];
     if (appState.infoWindow) appState.infoWindow.close();
 }
 
-/* Open an InfoWindow for a station marker */
+/* ============================================================
+   INFO WINDOW
+============================================================ */
+/**
+ * openInfoWindow — builds the popup HTML and shows it above the marker.
+ * Contains: name, address, status, connectors, number of points, cost,
+ * and Details / Save (★) / Navigate buttons.
+ */
 function openInfoWindow(marker, station) {
     const info       = station.AddressInfo;
     const connectors = getConnectorsList(station);
@@ -449,6 +890,7 @@ function openInfoWindow(marker, station) {
     const statusColor= getStatusColor(station.StatusType);
     const numPoints  = station.NumberOfPoints || 'N/A';
     const cost       = station.UsageCost || '';
+    const favIcon    = isFavorite(station.ID) ? 'bi-star-fill' : 'bi-star';
 
     const content = `
         <div class="info-window">
@@ -482,6 +924,10 @@ function openInfoWindow(marker, station) {
                             onclick="openStationModal(${station.ID})">
                         <i class="fa-solid fa-circle-info"></i> Details
                     </button>
+                    <button class="info-window-btn info-window-btn-star" style="margin-top:0;width:auto;padding:5px 10px;"
+                            onclick="toggleFavorite(${station.ID})" title="Save to favorites">
+                        <i class="bi ${favIcon}"></i>
+                    </button>
                     <a class="info-window-btn" style="margin-top:0;text-align:center;text-decoration:none;"
                        href="https://www.google.com/maps/dir/?api=1&destination=${info.Latitude},${info.Longitude}"
                        target="_blank" rel="noopener">
@@ -495,47 +941,68 @@ function openInfoWindow(marker, station) {
     appState.infoWindow.open(appState.map, marker);
 }
 
-/* Render the sidebar list applying the active filter */
+/* ============================================================
+   STATION LIST RENDERING
+============================================================ */
+/** Filters stations with the active filter and renders the cards in the sidebar. */
 function renderStationsList(stations) {
-    const $list   = $('#stationsList');
-    const filtered = filterStations(stations, appState.currentFilter);
+    const $list  = $('#stationsList');
+    const toShow = filterStations(stations, appState.currentFilter);
 
     $list.empty();
 
-    if (filtered.length === 0) {
+    if (toShow.length === 0) {
+        const isFavs = appState.currentFilter === 'favorites';
         $list.html(`
             <div class="text-center py-4" style="color: var(--color-text-muted); font-size: 0.82rem;">
-                <i class="fa-solid fa-filter mb-2 d-block" style="font-size: 1.5rem;"></i>
-                No stations match the active filter.
+                <i class="${isFavs ? 'bi bi-star' : 'fa-solid fa-filter'} mb-2 d-block" style="font-size: 1.5rem;"></i>
+                ${isFavs
+                    ? 'No saved stations yet.<br>Tap ★ on a card to save one.'
+                    : 'No stations match the active filters.'}
             </div>`);
     } else {
-        filtered.forEach(s => $list.append(createStationCard(s)));
+        toShow.forEach(s => $list.append(createStationCard(s)));
     }
 
     $('#statusMessage').hide();
     $list.removeClass('d-none').show();
-    updateStationsCount(filtered.length);
+    updateStationsCount(toShow.length);
 }
 
-/* Build a single station card element */
+/**
+ * createStationCard — creates the jQuery element for a station card.
+ * Includes status, name, address, distance, connectors and favourite/compare buttons.
+ */
 function createStationCard(station) {
     const info        = station.AddressInfo;
     const statusText  = getStatusText(station.StatusType);
     const statusClass = getStatusClass(station.StatusType);
-    const connectors  = getConnectorsList(station, 2); // cap at 2 in the card
+    const connectors  = getConnectorsList(station, 2);
     const numPoints   = station.NumberOfPoints || '?';
     const distanceStr = info.Distance
         ? (Math.round(info.Distance * 10) / 10) + ' km'
         : '';
+    const isFav       = isFavorite(station.ID);
+    const inCompare   = appState.compareList.includes(station.ID);
 
     const $card = $(`
         <div class="station-card" data-id="${station.ID}">
-            <div class="d-flex justify-content-between align-items-start">
+            <div class="card-top-row">
                 <span class="station-status ${statusClass}">
                     <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i>
                     ${statusText}
                 </span>
-                ${distanceStr ? `<small style="color: var(--color-text-muted); font-size: 0.72rem;">${distanceStr}</small>` : ''}
+                <div class="card-actions">
+                    ${distanceStr ? `<small class="card-distance">${distanceStr}</small>` : ''}
+                    <button class="btn-card-action btn-favorite ${isFav ? 'active' : ''}"
+                            title="${isFav ? 'Remove from saved' : 'Save station'}">
+                        <i class="bi ${isFav ? 'bi-star-fill' : 'bi-star'}"></i>
+                    </button>
+                    <button class="btn-card-action btn-compare-check ${inCompare ? 'active' : ''}"
+                            title="${inCompare ? 'Remove from comparison' : 'Add to comparison'}">
+                        <i class="bi bi-bar-chart-steps"></i>
+                    </button>
+                </div>
             </div>
             <p class="station-name">${escapeHtml(info.Title)}</p>
             <p class="station-address">
@@ -555,16 +1022,32 @@ function createStationCard(station) {
             </div>
         </div>`);
 
-    $card.on('click', function() {
+    // Click card body → center map
+    $card.on('click', function(e) {
+        if ($(e.target).closest('.btn-card-action').length) return;
         centerMapOnStation(info.Latitude, info.Longitude, station.ID);
+    });
+
+    // Favorite button
+    $card.find('.btn-favorite').on('click', function(e) {
+        e.stopPropagation();
+        toggleFavorite(station.ID, $card);
+    });
+
+    // Compare button
+    $card.find('.btn-compare-check').on('click', function(e) {
+        e.stopPropagation();
+        toggleCompare(station.ID);
     });
 
     return $card;
 }
 
-/* Pan map to a station and open its InfoWindow */
+/**
+ * centerMapOnStation — pans and zooms the map to a station at markerZoom (16).
+ * Waits for the 'idle' event so clusters dissolve before opening the InfoWindow.
+ */
 function centerMapOnStation(lat, lng, stationId) {
-    // Close the bottom sheet on mobile so the InfoWindow is visible
     if ($(window).width() <= 767) {
         $('#sidebar').removeClass('open');
         updateFabIcon(false);
@@ -573,14 +1056,25 @@ function centerMapOnStation(lat, lng, stationId) {
     appState.map.panTo({ lat, lng });
     appState.map.setZoom(CONFIG.markerZoom);
 
-    const marker  = appState.markers.find(m => m.stationId === stationId);
-    const station = appState.stations.find(s => s.ID === stationId);
-    if (marker && station) openInfoWindow(marker, station);
+    // Wait for map to settle so clusters dissolve before opening InfoWindow
+    google.maps.event.addListenerOnce(appState.map, 'idle', function() {
+        const marker  = appState.markers.find(m => m.stationId === stationId);
+        const station = appState.stations.find(s => s.ID === stationId)
+                     || appState.favorites.find(s => s.ID === stationId);
+        if (station && marker) {
+            if (!marker.getMap()) {
+                // Marker still managed by clusterer — extract it to avoid duplicates
+                if (appState.clusterer) appState.clusterer.removeMarker(marker);
+                marker.setMap(appState.map);
+            }
+            openInfoWindow(marker, station);
+        }
+    });
 
     highlightCard(stationId);
 }
 
-/* Mark the matching sidebar card as active and scroll to it */
+/** Highlights the active card in the sidebar and smoothly scrolls to it. */
 function highlightCard(stationId) {
     $('.station-card').removeClass('active');
     const $card = $(`.station-card[data-id="${stationId}"]`);
@@ -594,9 +1088,13 @@ function highlightCard(stationId) {
     appState.activeCardId = stationId;
 }
 
-/* Open the detail modal for a station */
+/**
+ * openStationModal — opens the Bootstrap modal with full station details:
+ * status, points, operator, access type, cost, connectors and favourite button.
+ */
 function openStationModal(stationId) {
-    const station = appState.stations.find(s => s.ID === stationId);
+    const station = appState.stations.find(s => s.ID === stationId)
+                 || appState.favorites.find(s => s.ID === stationId);
     if (!station) return;
 
     appState.currentModal = station;
@@ -605,7 +1103,6 @@ function openStationModal(stationId) {
     $('#stationModalLabel').text(info.Title);
     $('#modalAddress').text(buildAddress(info));
 
-    // Wire the Navigate button to this station's coordinates
     const navUrl = 'https://www.google.com/maps/dir/?api=1&destination='
                    + info.Latitude + ',' + info.Longitude;
     $('#modalNavigateBtn').attr('href', navUrl);
@@ -616,6 +1113,7 @@ function openStationModal(stationId) {
     const operator    = station.OperatorInfo ? station.OperatorInfo.Title : 'Not available';
     const usageType   = station.UsageType    ? station.UsageType.Title    : 'Not available';
     const cost        = station.UsageCost    || '';
+    const isFav       = isFavorite(station.ID);
 
     let connectorsHtml = '<div class="connector-list">';
     if (station.Connections && station.Connections.length > 0) {
@@ -663,27 +1161,374 @@ function openStationModal(stationId) {
         <div class="modal-info-item mb-0">
             <div class="modal-info-label mb-2"><i class="fa-solid fa-plug me-1"></i>Available connectors</div>
             ${connectorsHtml}
+        </div>
+        <div class="mt-3">
+            <button class="btn btn-sm ${isFav ? 'btn-warning' : 'btn-outline-warning'} modal-fav-btn"
+                    onclick="toggleFavoriteModal(${station.ID}, this)">
+                <i class="bi ${isFav ? 'bi-star-fill' : 'bi-star'} me-1"></i>
+                ${isFav ? 'Remove from saved' : 'Save to favorites'}
+            </button>
         </div>`);
 
     new bootstrap.Modal(document.getElementById('stationModal')).show();
 }
 
-// Needs to be global so the InfoWindow inline onclick can reach it
 window.openStationModal = openStationModal;
 
-/* Filter station array by status class */
-function filterStations(stations, filter) {
-    if (filter === 'all') return stations;
-    return stations.filter(s => getStatusClass(s.StatusType) === filter);
+/** Favourite toggle variant for the modal: also updates the button style in place. */
+function toggleFavoriteModal(stationId, btn) {
+    toggleFavorite(stationId);
+    const nowFav = isFavorite(stationId);
+    $(btn).toggleClass('btn-warning', nowFav).toggleClass('btn-outline-warning', !nowFav);
+    $(btn).find('i').attr('class', nowFav ? 'bi bi-star-fill me-1' : 'bi bi-star me-1');
+    $(btn).contents().last()[0].textContent = ' ' + (nowFav ? 'Remove from saved' : 'Save to favorites');
+}
+window.toggleFavoriteModal = toggleFavoriteModal;
+
+/* ============================================================
+   FAVORITES
+============================================================ */
+/** Reads favourites from localStorage into appState.favorites. */
+function loadFavorites() {
+    try {
+        appState.favorites = JSON.parse(localStorage.getItem(LS_FAVORITES)) || [];
+    } catch(e) {
+        appState.favorites = [];
+    }
 }
 
-/* --- Status helpers --- */
+/** Persists appState.favorites to localStorage (full OCM station object). */
+function saveFavorites() {
+    localStorage.setItem(LS_FAVORITES, JSON.stringify(appState.favorites));
+}
 
+/** Returns true if the station with that ID is in the favourites list. */
+function isFavorite(stationId) {
+    return appState.favorites.some(s => s.ID === stationId);
+}
+
+/**
+ * toggleFavorite — adds or removes a station from favourites.
+ * Updates: localStorage, card star icon, marker colour on the map.
+ */
+function toggleFavorite(stationId, $card) {
+    const station = appState.stations.find(s => s.ID === stationId)
+                 || appState.favorites.find(s => s.ID === stationId);
+    if (!station) return;
+
+    if (isFavorite(stationId)) {
+        appState.favorites = appState.favorites.filter(s => s.ID !== stationId);
+        showToast('<i class="bi bi-star me-1"></i> Removed from saved.', 'info');
+    } else {
+        appState.favorites.push(station);
+        showToast('<i class="bi bi-star-fill me-1"></i> Station saved!', 'success');
+    }
+    saveFavorites();
+
+    const nowFav = isFavorite(stationId);
+
+    // Update star in card (if $card element was passed or find it)
+    const $target = $card || $(`.station-card[data-id="${stationId}"]`);
+    $target.find('.btn-favorite')
+        .toggleClass('active', nowFav)
+        .attr('title', nowFav ? 'Remove from saved' : 'Save station')
+        .find('i').attr('class', nowFav ? 'bi bi-star-fill' : 'bi bi-star');
+
+    // Update marker color on map
+    const marker = appState.markers.find(m => m.stationId === stationId);
+    if (marker) {
+        const color = nowFav ? '#f59e0b' : getStatusColor(station.StatusType);
+        marker.setIcon({
+            url:        createMarkerSVG(color),
+            scaledSize: new google.maps.Size(36, 44),
+            anchor:     new google.maps.Point(18, 44)
+        });
+    }
+
+    // Re-render if viewing favorites
+    if (appState.currentFilter === 'favorites') {
+        renderStationsList(appState.stations);
+    }
+}
+
+window.toggleFavorite = toggleFavorite;
+
+/* ============================================================
+   COMPARE
+============================================================ */
+/** Adds or removes a station from the comparison list (max 3). Shows/hides the compare bar. */
+function toggleCompare(stationId) {
+    const idx = appState.compareList.indexOf(stationId);
+
+    if (idx > -1) {
+        appState.compareList.splice(idx, 1);
+    } else {
+        if (appState.compareList.length >= 3) {
+            showToast('You can compare up to 3 stations at a time.', 'warning');
+            return;
+        }
+        appState.compareList.push(stationId);
+    }
+
+    const inCompare = appState.compareList.includes(stationId);
+    const $btn = $(`.station-card[data-id="${stationId}"] .btn-compare-check`);
+    $btn.toggleClass('active', inCompare)
+        .attr('title', inCompare ? 'Remove from comparison' : 'Add to comparison');
+
+    const count = appState.compareList.length;
+    if (count > 0) {
+        $('#compareBar').removeClass('d-none');
+        $('#compareCount').text(count + (count === 1 ? ' selected' : ' selected'));
+        $('#compareBtn').prop('disabled', count < 2);
+    } else {
+        $('#compareBar').addClass('d-none');
+    }
+}
+
+/**
+ * openCompareModal — builds an HTML table comparing the selected stations.
+ * Rows: status, distance, points, connectors, max power, cost, operator, access type.
+ */
+function openCompareModal() {
+    const stations = appState.compareList
+        .map(id => appState.stations.find(s => s.ID === id)
+                || appState.favorites.find(s => s.ID === id))
+        .filter(Boolean);
+
+    if (stations.length < 2) return;
+
+    const headerCols = stations.map(s =>
+        `<th><span title="${escapeHtml(s.AddressInfo.Title)}">${escapeHtml(s.AddressInfo.Title)}</span></th>`
+    ).join('');
+
+    const rows = [
+        ['Status', s => {
+            const cls = getStatusClass(s.StatusType);
+            return `<span class="station-status ${cls}">${getStatusText(s.StatusType)}</span>`;
+        }],
+        ['Distance', s => {
+            const d = s.AddressInfo.Distance;
+            return d ? (Math.round(d * 10) / 10) + ' km' : '—';
+        }],
+        ['Charging points', s => s.NumberOfPoints || '—'],
+        ['Connectors', s => getConnectorsList(s) || '—'],
+        ['Max power', s => {
+            const powers = (s.Connections || []).map(c => c.PowerKW).filter(p => p > 0);
+            return powers.length > 0 ? Math.max(...powers) + ' kW' : '—';
+        }],
+        ['Cost', s => escapeHtml(s.UsageCost || 'Not specified')],
+        ['Operator', s => escapeHtml(s.OperatorInfo ? s.OperatorInfo.Title : '—')],
+        ['Access', s => escapeHtml(s.UsageType ? s.UsageType.Title : '—')]
+    ];
+
+    let tableHtml = `<table class="compare-table">
+        <thead><tr><th class="compare-feature-col">Feature</th>${headerCols}</tr></thead>
+        <tbody>`;
+
+    rows.forEach(function([label, fn]) {
+        const cells = stations.map(s => `<td>${fn(s)}</td>`).join('');
+        tableHtml += `<tr><td class="compare-feature">${label}</td>${cells}</tr>`;
+    });
+
+    tableHtml += '</tbody></table>';
+
+    $('#compareModalBody').html(`<div class="compare-table-wrapper">${tableHtml}</div>`);
+    new bootstrap.Modal(document.getElementById('compareModal')).show();
+}
+
+/* ============================================================
+   ZONE STATISTICS
+============================================================ */
+/** Calculates and displays the general stats row: total, operational, connector types, avg kW. */
+function updateZoneStats(stations) {
+    const total       = stations.length;
+    const operational = stations.filter(s => s.StatusType && s.StatusType.IsOperational === true).length;
+
+    const connTypes = new Set();
+    const powers    = [];
+
+    stations.forEach(function(s) {
+        if (s.Connections) {
+            s.Connections.forEach(function(c) {
+                if (c.ConnectionType) connTypes.add(c.ConnectionType.Title);
+                if (c.PowerKW && c.PowerKW > 0) powers.push(c.PowerKW);
+            });
+        }
+    });
+
+    const avgPower = powers.length > 0
+        ? Math.round(powers.reduce((a, b) => a + b, 0) / powers.length)
+        : null;
+
+    $('#statTotal').text(total);
+    $('#statOperational').text(operational);
+    $('#statConnTypes').text(connTypes.size);
+    $('#statAvgPower').text(avgPower ? avgPower : '—');
+    $('#zoneStats').removeClass('d-none');
+}
+
+/** Shows a second stats row (amber) with totals for the active filter. Hidden when filter is 'all'. */
+function updateFilteredStats() {
+    const { connectors, speeds, costs } = appState.advFilters;
+    const hasAdvanced = connectors.length > 0 || speeds.length > 0 || costs.length > 0;
+    const hasFilter   = appState.currentFilter !== 'all' || hasAdvanced;
+
+    if (!hasFilter || appState.stations.length === 0) {
+        $('#filteredStats').addClass('d-none');
+        return;
+    }
+
+    const filtered    = filterStations(appState.stations, appState.currentFilter);
+    const operational = filtered.filter(s => s.StatusType && s.StatusType.IsOperational === true).length;
+    const powers      = [];
+
+    filtered.forEach(function(s) {
+        if (s.Connections) {
+            s.Connections.forEach(function(c) {
+                if (c.PowerKW && c.PowerKW > 0) powers.push(c.PowerKW);
+            });
+        }
+    });
+
+    const avgPower = powers.length > 0
+        ? Math.round(powers.reduce((a, b) => a + b, 0) / powers.length)
+        : null;
+
+    $('#fstatTotal').text(filtered.length);
+    $('#fstatOperational').text(operational);
+    $('#fstatAvgPower').text(avgPower ? avgPower : '—');
+    $('#filteredStats').removeClass('d-none');
+}
+
+/* ============================================================
+   ADVANCED FILTERS
+============================================================ */
+/** Shows/hides the "Active" badge and highlights the button when advanced filters are on. */
+function updateAdvancedFilterIndicator() {
+    const { connectors, speeds, costs } = appState.advFilters;
+    const hasActive = connectors.length > 0 || speeds.length > 0 || costs.length > 0;
+    $('#filterActiveIndicator').toggleClass('d-none', !hasActive);
+    $('#advancedFilterToggle').toggleClass('active', hasActive);
+}
+
+/**
+ * filterStations — applies the active pill and advanced filters to a station array.
+ * @param {Array}  stations — array of OCM station objects
+ * @param {string} filter   — 'all' | 'operational' | 'unknown' | 'favorites'
+ * @returns {Array} stations that pass all filters
+ */
+function filterStations(stations, filter) {
+    let result;
+
+    if (filter === 'favorites') {
+        result = [...appState.favorites];
+    } else if (filter === 'all') {
+        result = stations;
+    } else {
+        result = stations.filter(s => getStatusClass(s.StatusType) === filter);
+    }
+
+    return applyAdvancedFilters(result);
+}
+
+/** Applies the advanced filters (connector, speed, cost) to the given array. */
+function applyAdvancedFilters(stations) {
+    const { connectors, speeds, costs } = appState.advFilters;
+
+    return stations.filter(function(station) {
+        if (connectors.length > 0) {
+            const ok = connectors.some(type => stationHasConnector(station, type));
+            if (!ok) return false;
+        }
+        if (speeds.length > 0) {
+            const ok = speeds.some(speed => stationHasSpeed(station, speed));
+            if (!ok) return false;
+        }
+        if (costs.length > 0) {
+            const costType = getStationCostType(station);
+            if (!costs.includes(costType)) return false;
+        }
+        return true;
+    });
+}
+
+// OCM connector type IDs — primary matching method (immune to name changes)
+const CONNECTOR_IDS = {
+    ccs:     new Set([32, 33]),              // CCS Combo 2 (EU), CCS Combo 1 (US/JP)
+    chademo: new Set([2]),                   // CHAdeMO
+    type2:   new Set([25, 1036]),            // Type 2 Socket (Mennekes), Type 2 Tethered
+    type1:   new Set([1]),                   // Type 1 / J1772
+    tesla:   new Set([27, 30, 1032, 1033]),  // Tesla Roadster, Model S/X, V3, NACS
+    schuko:  new Set([28])                   // Schuko / CEE 7/4
+};
+
+/**
+ * stationHasConnector — checks whether a station has the specified connector type.
+ * Uses the OCM numeric ID first (most reliable) and falls back to the connector name.
+ * @param {Object} station — OCM station object
+ * @param {string} type    — 'ccs' | 'chademo' | 'type2' | 'type1' | 'tesla' | 'schuko'
+ * @returns {boolean}
+ */
+function stationHasConnector(station, type) {
+    if (!station.Connections) return false;
+    const ids = CONNECTOR_IDS[type];
+    return station.Connections.some(function(c) {
+        if (!c.ConnectionType) return false;
+        // Primary: match by numeric ID
+        if (ids && ids.has(c.ConnectionType.ID)) return true;
+        // Fallback: string match for unknown/future IDs
+        const title = c.ConnectionType.Title.toLowerCase();
+        switch (type) {
+            case 'ccs':     return title.includes('ccs') || title.includes('combo');
+            case 'chademo': return title.includes('chademo');
+            case 'type2':   return (title.includes('type 2') || title.includes('mennekes')) && !title.includes('ccs') && !title.includes('combo');
+            case 'type1':   return (title.includes('type 1') || title.includes('j1772')) && !title.includes('ccs') && !title.includes('combo');
+            case 'tesla':   return title.includes('tesla') || title.includes('nacs');
+            case 'schuko':  return title.includes('schuko') || title.includes('cee 7');
+            default:        return false;
+        }
+    });
+}
+
+/**
+ * stationHasSpeed — checks whether any of the station's connections falls within the speed range.
+ * @param {Object} station — OCM station object
+ * @param {string} speed   — 'slow' (≤7kW) | 'fast' (7–50kW) | 'ultra' (>50kW)
+ */
+function stationHasSpeed(station, speed) {
+    if (!station.Connections) return false;
+    return station.Connections.some(function(c) {
+        const kw = c.PowerKW || 0;
+        if (kw <= 0) return false;
+        switch (speed) {
+            case 'slow':  return kw <= 7;
+            case 'fast':  return kw > 7 && kw <= 50;
+            case 'ultra': return kw > 50;
+            default:      return false;
+        }
+    });
+}
+
+/** Returns 'free' or 'paid' based on the station's UsageCost field. */
+function getStationCostType(station) {
+    if (!station.UsageCost || station.UsageCost.trim() === '') return 'free';
+    const cost = station.UsageCost.toLowerCase().trim();
+    if (cost === 'free' || cost === '0' || cost === '0.00' || cost.startsWith('free')) return 'free';
+    return 'paid';
+}
+
+/* ============================================================
+   STATUS HELPERS
+============================================================ */
+/**
+ * getStatusText — converts the OCM StatusType object into a human-readable string.
+ * @param {Object|null} statusType
+ * @returns {string} e.g. 'Operational', 'Out of service', 'Unknown'
+ */
 function getStatusText(statusType) {
     if (!statusType) return 'Unknown';
     if (statusType.IsOperational === true)  return 'Operational';
     if (statusType.IsOperational === false) return 'Out of service';
-
     const map = {
         'Operational':             'Operational',
         'Not Operational':         'Out of service',
@@ -694,6 +1539,7 @@ function getStatusText(statusType) {
     return map[statusType.Title] || statusType.Title || 'Unknown';
 }
 
+/** Returns the CSS class ('operational' | 'offline' | 'unknown') for styling badges and pills. */
 function getStatusClass(statusType) {
     if (!statusType) return 'unknown';
     if (statusType.IsOperational === true)  return 'operational';
@@ -701,16 +1547,17 @@ function getStatusClass(statusType) {
     return 'unknown';
 }
 
+/** Returns the hex colour of the SVG marker based on status: green / red / amber. */
 function getStatusColor(statusType) {
-    const colors = {
-        operational: '#00d084',
-        offline:     '#ef4444',
-        unknown:     '#f59e0b'
-    };
+    const colors = { operational: '#00d084', offline: '#ef4444', unknown: '#f59e0b' };
     return colors[getStatusClass(statusType)] || colors.unknown;
 }
 
-/* Return connector type names, optionally capped at maxItems */
+/**
+ * getConnectorsList — returns the unique connector types as a comma-separated string.
+ * @param {Object} station  — OCM station object
+ * @param {number} maxItems — optional cap; appends '…' if there are more
+ */
 function getConnectorsList(station, maxItems) {
     if (!station.Connections || station.Connections.length === 0) return '';
     const unique = [...new Set(
@@ -719,12 +1566,12 @@ function getConnectorsList(station, maxItems) {
             .filter(Boolean)
     )];
     if (maxItems && unique.length > maxItems) {
-        return unique.slice(0, maxItems).join(', ') + '...';
+        return unique.slice(0, maxItems).join(', ') + '…';
     }
     return unique.join(', ');
 }
 
-/* Build a readable address string from AddressInfo */
+/** buildAddress — builds a readable address string from the OCM AddressInfo object. */
 function buildAddress(info) {
     const parts = [
         info.AddressLine1,
@@ -735,7 +1582,7 @@ function buildAddress(info) {
     return parts.join(', ') || 'Address not available';
 }
 
-/* Escape user-facing strings to prevent XSS */
+/** escapeHtml — escapes special HTML characters to prevent XSS when inserting external data into the DOM. */
 function escapeHtml(text) {
     if (typeof text !== 'string') return text || '';
     return text
@@ -746,22 +1593,31 @@ function escapeHtml(text) {
         .replace(/'/g, '&#039;');
 }
 
-/* --- UI helpers --- */
-
+/* ============================================================
+   UI HELPERS
+============================================================ */
+/** Shows the loading spinner and hides the station list and status message. */
 function showLoadingSpinner() {
     $('#statusMessage').hide();
     $('#stationsList').addClass('d-none').hide();
     $('#loadingSpinner').removeClass('d-none').show();
 }
 
+/** Hides the loading spinner. */
 function hideLoadingSpinner() {
     $('#loadingSpinner').addClass('d-none').hide();
 }
 
+/**
+ * showStatusMessage — shows the empty/error/no-results status panel in the sidebar.
+ * @param {string} type    — 'default' | 'error' | 'no-results'
+ * @param {string} icon    — FontAwesome icon class
+ * @param {string} title   — message title
+ * @param {string} message — descriptive text
+ */
 function showStatusMessage(type, icon, title, message) {
     hideLoadingSpinner();
     $('#stationsList').addClass('d-none').hide();
-
     const $msg = $('#statusMessage');
     $msg.removeClass('error no-results').addClass(type !== 'default' ? type : '');
     $msg.find('.status-icon i').attr('class', icon);
@@ -770,15 +1626,19 @@ function showStatusMessage(type, icon, title, message) {
     $msg.show();
 }
 
+/** Updates the count badge in the sidebar and the FAB badge. */
 function updateStationsCount(count) {
     $('#stationsCount').text(count);
     updateFabBadge(count);
 }
 
+/** Switches the FAB icon and hides/shows it based on whether the sidebar is open (mobile). */
 function updateFabIcon(isOpen) {
     $('#togglePanel i').attr('class', isOpen ? 'bi bi-chevron-down' : 'bi bi-list-ul');
+    $('#togglePanel').toggleClass('fab-hidden', isOpen);
 }
 
+/** Shows the station count in the FAB badge; hides it when count=0 and caps at '99+'. */
 function updateFabBadge(count) {
     const $badge = $('#fabBadge');
     count > 0
@@ -786,20 +1646,39 @@ function updateFabBadge(count) {
         : $badge.addClass('d-none');
 }
 
+/**
+ * showToast — shows a Bootstrap toast notification for 4 seconds.
+ * @param {string} message — HTML content of the message
+ * @param {string} type    — 'info' | 'success' | 'error' | 'warning'
+ */
 function showToast(message, type) {
     const $toast = $('#notificationToast');
     $toast.removeClass('success error info warning').addClass(type || 'info');
     $('#toastBody').html(message);
-
     bootstrap.Toast.getOrCreateInstance(document.getElementById('notificationToast'), {
         delay: 4000, autohide: true
     }).show();
 }
 
-/* Runs on page load — sets up error handling before Maps loads */
+/* ============================================================
+   INIT
+============================================================ */
+/**
+ * $(document).ready — main entry point.
+ * Restores theme, favourites, history and radius saved in localStorage.
+ * Also registers Google Maps API error handlers.
+ */
 $(document).ready(function() {
     initTheme();
-    // Called by Maps SDK if the API key fails auth
+    loadFavorites();
+    loadSearchHistory();
+    const savedRadius = parseInt(localStorage.getItem(LS_RADIUS));
+    if (savedRadius && savedRadius >= 1 && savedRadius <= 50) {
+        CONFIG.searchRadiusKm = savedRadius;
+        $('#radiusSlider').val(savedRadius);
+        $('#radiusValue').text(savedRadius);
+    }
+
     window.gm_authFailure = function() {
         document.getElementById('mapOverlay').querySelector('p').textContent =
             'Google Maps auth error — check GOOGLE_MAPS_API_KEY in config.js.';
@@ -813,7 +1692,6 @@ $(document).ready(function() {
             </div>`);
     };
 
-    // Warn in console if Maps never loads
     setTimeout(function() {
         if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
             console.warn('[EV Charge Locator] Google Maps did not load — check the API key and internet connection.');
