@@ -1632,9 +1632,10 @@ function updateStationsCount(count) {
     updateFabBadge(count);
 }
 
-/** Switches the FAB icon depending on whether the sidebar is open or closed. */
+/** Switches the FAB icon and hides/shows it based on whether the sidebar is open (mobile). */
 function updateFabIcon(isOpen) {
     $('#togglePanel i').attr('class', isOpen ? 'bi bi-chevron-down' : 'bi bi-list-ul');
+    $('#togglePanel').toggleClass('fab-hidden', isOpen);
 }
 
 /** Shows the station count in the FAB badge; hides it when count=0 and caps at '99+'. */
