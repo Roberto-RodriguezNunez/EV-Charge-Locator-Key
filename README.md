@@ -76,8 +76,6 @@ Options:
 - **Python** — `python -m http.server 4200`
 - **Node.js** — `npx serve -l 4200`
 
-> A local HTTP server is required — Google Maps does not work when opening the file directly from the filesystem.
-
 ## License
 
 Personal academic project. Not for commercial use.
