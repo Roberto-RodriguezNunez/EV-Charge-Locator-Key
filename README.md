@@ -48,7 +48,9 @@ No build step, no bundler, no framework. Every dependency is loaded from a CDN.
 │   ├── app.js            — all application logic (~1500 lines, vanilla JS)
 │   ├── config.js         — API keys (excluded from repository, see below)
 │   └── config.example.js — template for config.js
-└── README.md
+├── img/                  — static image assets
+├── README.md
+└── MEMORIA.md            — detailed technical documentation (Spanish)
 ```
 
 ## Setup
@@ -57,8 +59,8 @@ No build step, no bundler, no framework. Every dependency is loaded from a CDN.
 2. Fill in your API keys:
 
 ```js
-const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_KEY';
-const OCM_API_KEY         = 'YOUR_OPEN_CHARGE_MAP_KEY';
+const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
+const OCM_API_KEY         = 'YOUR_OCM_API_KEY';
 ```
 
 - Google Maps key: [console.cloud.google.com](https://console.cloud.google.com) — enable Maps JavaScript API, Geocoding API and Places API
