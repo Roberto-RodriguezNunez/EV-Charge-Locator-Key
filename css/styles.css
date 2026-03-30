@@ -1606,13 +1606,13 @@ html, body {
         display: flex;
     }
 
-    /* FAB: fixed to avoid overflow:hidden clipping; left side to avoid cutoff */
+    /* FAB: fixed to avoid overflow:hidden clipping */
     .btn-fab {
         display: flex;
         position: fixed;
         bottom: 90px;
-        left: 20px;
-        right: auto;
+        right: 20px;
+        left: auto;
         z-index: 200;
     }
 
@@ -1667,6 +1667,12 @@ html, body {
     .sidebar.view-full {
         width: 100% !important;
     }
+
+    /* Hide stats when the advanced filters panel is open — no room for both */
+    .sidebar:has(#advancedFiltersPanel:not(.d-none)) #zoneStats,
+    .sidebar:has(#advancedFiltersPanel:not(.d-none)) #filteredStats {
+        display: none !important;
+    }
 }
 
 @media (max-width: 480px) {
@@ -1692,34 +1698,38 @@ html, body {
         padding: 0 0.6rem;
     }
 
-    /* Compact stats rows on small screens */
+    /* Compact stats rows on small screens — single row, tight spacing */
     .zone-stats {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
 
     .stat-item {
-        flex: 1 1 40%;
-        padding: 0.35rem 0.2rem;
-        border-right: 1px solid var(--color-dark-4);
+        flex: 1;
+        padding: 0.2rem 0.1rem;
+        min-width: 0;
     }
 
     .stat-value {
-        font-size: 0.82rem;
+        font-size: 0.72rem;
     }
 
     .stat-label {
-        font-size: 0.55rem;
+        font-size: 0.48rem;
+        margin-top: 1px;
     }
 
     .stat-item-label {
-        flex: 1 1 100%;
+        flex: 0 0 auto;
         flex-direction: row;
-        gap: 6px;
-        border-right: none;
-        border-bottom: 1px solid var(--color-dark-4);
-        padding: 4px 10px;
+        gap: 4px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.65rem;
     }
 }
+
+/* ============================================================
+   GOOGLE MAPS — hide built-in controls we don't want
+============================================================ */
 
 /* ============================================================
    UTILITIES
