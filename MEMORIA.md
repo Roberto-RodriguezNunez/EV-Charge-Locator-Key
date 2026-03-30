@@ -253,11 +253,15 @@ Las API keys están en `config.js` que está en `.gitignore` — nunca se suben 
 cp js/config.example.js js/config.js
 # Edita config.js y pon tus API keys
 
-# 2. Arranca un servidor HTTP estático
-npx serve -l 4200
+# 2. Arranca un servidor HTTP estático (cualquiera vale):
+#    - VS Code: extensión Live Server → botón "Go Live"
+#    - Python:  python -m http.server 4200
+#    - Node.js: npx serve -l 4200
 
 # 3. Abre http://localhost:4200 en el navegador
 ```
+
+> No abras `index.html` directamente como `file://` — Google Maps no funciona por restricciones CORS del navegador.
 
 Para probarlo desde el móvil sin publicarlo:
 ```bash

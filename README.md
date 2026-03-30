@@ -66,13 +66,15 @@ const OCM_API_KEY         = 'YOUR_OPEN_CHARGE_MAP_KEY';
 
 ## Running locally
 
-Any static HTTP server works. With Node.js:
+The project is fully static — no server-side code, no build step. Just serve the files with any static HTTP server and open `http://localhost:4200`.
 
-```bash
-npx serve -l 4200
-```
+Options:
 
-Then open `http://localhost:4200`.
+- **VS Code** — install the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension and click *Go Live*
+- **Python** — `python -m http.server 4200`
+- **Node.js** — `npx serve -l 4200`
+
+> Opening `index.html` directly as a `file://` URL will not work due to browser CORS restrictions on the Google Maps API.
 
 ## License
 
