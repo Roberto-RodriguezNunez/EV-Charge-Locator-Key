@@ -68,5 +68,9 @@ const OCM_API_KEY         = 'YOUR_OCM_API_KEY';
 
 ## Running locally
 
-The project is fully static — no server-side code, no build step. Just open `index.html` directly in the browser, or use any static HTTP server.
+The project is fully static — no server-side code, no build step. Options:
+
+- **Double-click** `index.html` to open it directly in the browser
+- **VS Code** — install the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension and click *Go Live*
+- **Python** — `python -m http.server 4200`
 
