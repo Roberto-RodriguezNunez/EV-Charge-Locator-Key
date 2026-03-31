@@ -71,7 +71,7 @@
                             placeholder="City or address..."
                             autocomplete="off"
                         >
-                        <button class="btn btn-search" type="submit" id="searchBtn">
+                        <button class="btn btn-search" type="submit">
                             <span class="btn-text">Search</span>
                             <i class="bi bi-arrow-right-short fs-5"></i>
                         </button>
@@ -100,7 +100,7 @@
         <aside class="sidebar" id="sidebar">
 
             <!-- Drag handle (mobile only) -->
-            <div class="sidebar-drag-handle" id="sidebarHandle"></div>
+            <div class="sidebar-drag-handle"></div>
 
             <!-- Sidebar header -->
             <div class="sidebar-header">
@@ -111,7 +111,7 @@
                     </h6>
                     <div class="d-flex align-items-center gap-2">
                         <!-- View toggle (desktop only) -->
-                        <div class="view-toggle d-none d-md-flex" id="viewToggle">
+                        <div class="view-toggle d-none d-md-flex">
                             <button class="view-btn active" id="viewBoth" title="Map + List">
                                 <i class="bi bi-layout-split"></i>
                             </button>
@@ -130,7 +130,7 @@
                 </div>
 
                 <!-- Quick filter pills -->
-                <div class="filter-pills mt-2" id="filterPills">
+                <div class="filter-pills mt-2">
                     <button class="pill active" data-filter="all">All</button>
                     <button class="pill" data-filter="operational">Operational</button>
                     <button class="pill" data-filter="unknown">Unknown</button>
