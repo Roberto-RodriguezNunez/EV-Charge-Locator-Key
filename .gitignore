@@ -10,6 +10,7 @@ cloudflared
 # Claude Code internal files — not part of the project
 .claude/
 PROJECT_MEMORY.md
+MEMORIA.md
 
 # System files
 .DS_Store

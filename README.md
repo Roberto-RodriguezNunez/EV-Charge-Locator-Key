@@ -45,26 +45,12 @@ No build step, no bundler, no framework. Every dependency is loaded from a CDN.
 ├── css/
 │   └── styles.css        — custom styles and CSS variable theme system
 ├── js/
-│   ├── app.js            — all application logic (~1500 lines, vanilla JS)
-│   ├── config.js         — API keys (excluded from repository, see below)
-│   └── config.example.js — template for config.js
+│   ├── app.js            — all application logic 
+│   └── config.js         — API keys 
 ├── img/                  — static image assets
 ├── README.md
 └── MEMORIA.md            — detailed technical documentation (Spanish)
 ```
-
-## Setup
-
-1. Copy `js/config.example.js` to `js/config.js`
-2. Fill in your API keys:
-
-```js
-const GOOGLE_MAPS_API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY';
-const OCM_API_KEY         = 'YOUR_OCM_API_KEY';
-```
-
-- Google Maps key: [console.cloud.google.com](https://console.cloud.google.com) — enable Maps JavaScript API, Geocoding API and Places API
-- Open Charge Map key: [openchargemap.org/site/develop](https://openchargemap.org/site/develop)
 
 ## Running locally
 
@@ -73,4 +59,19 @@ The project is fully static — no server-side code, no build step. Options:
 - **Double-click** `index.html` to open it directly in the browser
 - **VS Code** — install the [Live Server](https://marketplace.visualstudio.com/items?itemName=ritwickdey.LiveServer) extension and click *Go Live*
 - **Python** — `python -m http.server 4200`
+
+## Testing on mobile / tablet
+
+To access the app from another device on the same network or anywhere via a public URL, use the included [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) binary to create a temporary tunnel:
+
+```bash
+# 1. Start a local server (pick any option)
+npx serve -l 4200
+# or: python -m http.server 4200
+
+# 2. In a second terminal, open the tunnel
+./cloudflared tunnel --url http://localhost:4200
+```
+
+Cloudflared will print a public URL like `https://xxxxx.trycloudflare.com`. Open that URL on any device — no account or configuration needed. The tunnel stays active as long as the process is running.
 
